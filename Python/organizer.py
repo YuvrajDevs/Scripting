@@ -9,6 +9,7 @@ FILE_TYPES = {
     "Archives": [".zip", ".rar", ".7z", ".tar", ".gz"],
     "Audio": [".mp3", ".wav", ".aac"],
     "Video": [".mp4", ".mov", ".avi", ".mkv"]
+	}
 
 def organize_files():
     all_files = os.listdir(TARGET_DIRECTORY)
