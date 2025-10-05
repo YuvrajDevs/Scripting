@@ -1,0 +1,4 @@
+username,email,home_directory
+alice,alice@example.com,/home/alice
+bob,bob@example.com,/tmp
+charlie,charlie@example.com,/home/charlie
