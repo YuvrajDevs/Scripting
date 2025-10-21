@@ -1,0 +1,13 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "admin"
+  },
+  "api_key": "abc123xyz789",
+  "features": [
+    "feature-toggle-A",
+    "feature-toggle-B"
+  ],
+  "debug_mode": true
+}
