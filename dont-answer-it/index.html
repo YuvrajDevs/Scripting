@@ -60,6 +60,7 @@ const canvas = document.getElementById('gl');
 const subEl = document.getElementById('sub');
 const startEl = document.getElementById('start');
 const clockEl = document.getElementById('clock');
+const dotEl = document.querySelector('#stamp i');
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = THREE.MathUtils.clamp;
@@ -309,6 +310,11 @@ function noiseBuf(sec, brown) {
 function initAudio() {
   try {
     ac = new (window.AudioContext || window.webkitAudioContext)();
+    buildGraph();
+  } catch (e) { ac = null; }
+}
+function buildGraph() {
+  {
     const master = ac.createGain(); master.gain.value = .9; master.connect(ac.destination);
     const comp = ac.createDynamicsCompressor(); comp.connect(master);
     bus = ac.createGain(); bus.connect(comp);
@@ -330,11 +336,11 @@ function initAudio() {
     const mf = ac.createBiquadFilter(); mf.type = 'bandpass'; mf.frequency.value = 900; mf.Q.value = 5;
     const mgn = ac.createGain(); mgn.gain.value = 0; mb.connect(mf).connect(mgn); mgn.connect(bus); mgn.connect(conv); mb.start();
     nodes = { dg, hg, mgn, mf, d1, d2, hi };
-  } catch (e) { ac = null; }
+  }
 }
 function env(g, t, a, peak, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(.0008, t + a + d); }
-function knock(pan = 0, vol = 1, far = .0) {
-  if (!ac) return; const t = ac.currentTime;
+function knock(pan = 0, vol = 1, far = .0, at) {
+  if (!ac) return; const t = at ?? ac.currentTime;
   const o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(48, t + .18);
   const og = ac.createGain(); env(og, t, .004, .9 * vol, .28);
   const n = ac.createBufferSource(); n.buffer = noiseBuf(.3, false); const nf = ac.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = far ? 500 : 1400;
@@ -343,21 +349,70 @@ function knock(pan = 0, vol = 1, far = .0) {
   o.connect(og).connect(p); n.connect(nf).connect(ng).connect(p); p.connect(bus); p.connect(reverb);
   o.start(t); o.stop(t + .4); n.start(t); n.stop(t + .3);
 }
-function tick(v = .12) {
-  if (!ac) return; const t = ac.currentTime;
+function tick(v = .12, at) {
+  if (!ac) return; const t = at ?? ac.currentTime;
   const n = ac.createBufferSource(); n.buffer = noiseBuf(.05, false); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 3;
   const g = ac.createGain(); env(g, t, .001, v, .03); const p = ac.createStereoPanner(); p.pan.value = -.7;
   n.connect(f).connect(g).connect(p).connect(bus); n.start(t); n.stop(t + .05);
 }
-function beat(v = .7) {
-  if (!ac) return; const t = ac.currentTime;
+function beat(v = .7, at) {
+  if (!ac) return; const t = at ?? ac.currentTime;
   [0, .17].forEach((dt, i) => { const o = ac.createOscillator(); o.frequency.setValueAtTime(70, t + dt); o.frequency.exponentialRampToValueAtTime(38, t + dt + .12); const g = ac.createGain(); env(g, t + dt, .005, v * (i ? .7 : 1), .16); o.connect(g).connect(bus); o.start(t + dt); o.stop(t + dt + .25); });
 }
-function stinger() {
-  if (!ac) return; const t = ac.currentTime;
+function stinger(at) {
+  if (!ac) return; const t = at ?? ac.currentTime;
   const n = ac.createBufferSource(); n.buffer = noiseBuf(1.5, false); const g = ac.createGain(); env(g, t, .002, 1, .5); n.connect(g).connect(bus); n.start(t); n.stop(t + 1.5);
   [185, 196, 277, 311, 466].forEach((f, i) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * (1 + i * .003); const og = ac.createGain(); env(og, t, .01, .22, 1.2); o.connect(og).connect(bus); o.start(t); o.stop(t + 1.5); });
   const sub = ac.createOscillator(); sub.frequency.setValueAtTime(90, t); sub.frequency.exponentialRampToValueAtTime(28, t + .6); const sg = ac.createGain(); env(sg, t, .003, 1, .8); sub.connect(sg).connect(bus); sub.start(t); sub.stop(t + 1);
+}
+// whisper: breath noise through three formant filters, one step per phoneme
+function whisper(at) {
+  const ph = [ // [start, dur, F1, F2, F3, gain, fricative]
+    [0.00, .16, 420, 1900, 2600, .9, 0], [0.16, .16, 0, 0, 0, .5, 1],              // "it" + "s"
+    [0.60, .10, 260, 1100, 2200, .55, 0], [0.70, .34, 300, 2300, 3000, .95, 0],    // "me"
+    [1.55, .38, 520, 900, 2500, 1, 0], [1.93, .10, 320, 800, 2300, .6, 0],         // "o"
+    [2.08, .05, 0, 0, 0, .5, 2], [2.13, .20, 560, 1800, 2500, .85, 0], [2.33, .12, 260, 1300, 2300, .55, 0], // "pen"
+    [2.60, .26, 700, 1200, 2500, .9, 0], [2.86, .06, 0, 0, 0, .5, 2]               // "up"
+  ];
+  const src = ac.createBufferSource(); src.buffer = noiseBuf(4, false); src.loop = true;
+  const out = ac.createGain(); out.gain.value = .55; out.connect(bus); out.connect(reverb);
+  const fr = ac.createBiquadFilter(); fr.type = 'highpass'; fr.frequency.value = 5200; const fg = ac.createGain(); fg.gain.value = 0;
+  src.connect(fr).connect(fg).connect(out);
+  const forms = [0, 1, 2].map(i => { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [9, 11, 12][i]; const g = ac.createGain(); g.gain.value = 0; src.connect(f).connect(g).connect(out); return { f, g, w: [1, .7, .4][i] }; });
+  ph.forEach(([st, d, a, b, c, gn, fric]) => {
+    const t = at + st;
+    if (fric) { fg.gain.setValueAtTime(0, t); fg.gain.linearRampToValueAtTime(gn * (fric === 2 ? 1.6 : 1.2), t + .02); fg.gain.linearRampToValueAtTime(0, t + d); return; }
+    [a, b, c].forEach((fq, i) => { forms[i].f.frequency.setValueAtTime(fq, t); forms[i].g.gain.setValueAtTime(0, t); forms[i].g.gain.linearRampToValueAtTime(gn * forms[i].w * 7, t + .03); forms[i].g.gain.linearRampToValueAtTime(0, t + d); });
+  });
+  src.start(at); src.stop(at + 3.2);
+}
+async function renderAudioOffline() {
+  const sr = 44100, len = 46;
+  ac = new OfflineAudioContext(2, sr * len, sr); buildGraph();
+  const ten = t => smooth(8, 20, t) * .35 + smooth(26, 38, t) * .65;
+  for (let t = 0; t <= 45; t += .02) {
+    nodes.dg.gain.setValueAtTime(ten(t) * .55 + smooth(40, 44, t) * .5, t);
+    nodes.d1.frequency.setValueAtTime(43 - smooth(38, 44, t) * 9, t);
+    nodes.hg.gain.setValueAtTime(ten(t) ** 2 * .018 + smooth(40, 44, t) * .02, t);
+    const talking = (t >= 19 && t < 21.6) || (t >= 24.6 && t < 26.8) ? 1 : 0;
+    nodes.mgn.gain.setValueAtTime(talking * (.035 + .02 * Math.sin(t * 9)), t);
+    nodes.mf.frequency.setValueAtTime(700 + Math.sin(t * 3.1) * 300 + Math.sin(t * 9) * 150, t);
+  }
+  knock(0, 1, 1, 11.8); knock(0, 1.05, 1, 13.3); knock(0, 1.15, 1, 14.8); knock(.85, 1.6, 0, 38.0);
+  whisper(19.2); whisper(24.7);
+  for (let s = 1; s < 38; s++) tick(.1 + ten(s) * .08, s);
+  for (let t = 28; t < 44;) { beat(.35 + ten(t) * .5, t); t += 1.05 - ten(t) * .5 - smooth(38, 44, t) * .15; }
+  stinger(44.0);
+  const buf = await ac.startRendering();
+  const L = buf.getChannelData(0), Rr = buf.getChannelData(1), n = Math.floor(sr * 45.2), bytes = new Uint8Array(44 + n * 4), dv = new DataView(bytes.buffer);
+  const wr = (o, str) => { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + n * 4, true); wr(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, n * 4, true);
+  let peak = 0; for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(Rr[i]));
+  const k = peak > .95 ? .95 / peak : 1;
+  for (let i = 0; i < n; i++) { dv.setInt16(44 + i * 4, clamp(L[i] * k, -1, 1) * 32767, true); dv.setInt16(46 + i * 4, clamp(Rr[i] * k, -1, 1) * 32767, true); }
+  let bin = ''; for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+  return { b64: btoa(bin), peak };
 }
 let voiceCache = null;
 function speak(text, rate, pitch, vol) {
@@ -388,7 +443,7 @@ const EVENTS = [
   [38.0, () => { knock(.85, 1.6); bump(2.4); dip(2); }],
   [44.0, () => { stinger(); film.uniforms.flash.value = .6; }]
 ];
-let tClock = 0, fired = 0, playing = false, ended = false, tickSec = -1, beatNext = 0, dipV = 0, bumpV = 0, murmurUntil = 0;
+let manual = false, tClock = 0, fired = 0, playing = false, ended = false, tickSec = -1, beatNext = 0, dipV = 0, bumpV = 0, murmurUntil = 0;
 const dip = v => { dipV = Math.max(dipV, v); };
 const bump = v => { bumpV = Math.max(bumpV, v); };
 function murmur(sec) { murmurUntil = tClock + sec; }
@@ -496,6 +551,7 @@ function update(dt) {
 
   // subtitles
   let idx = -1; for (let i = 0; i < SUBS.length; i++) if (t >= SUBS[i][0] && t < SUBS[i][1]) idx = i;
+  if (manual) { subEl.style.transition = 'none'; subEl.style.opacity = idx < 0 ? 0 : smooth(SUBS[idx][0], SUBS[idx][0] + .3, t) * (1 - smooth(SUBS[idx][1] - .3, SUBS[idx][1], t)); dotEl.style.animation = 'none'; dotEl.style.opacity = Math.floor(t / .6) % 2 ? 0 : 1; }
   if (idx !== subIdx) { subIdx = idx; if (idx < 0) subEl.classList.remove('on'); else { subEl.textContent = SUBS[idx][2]; subEl.classList.add('on'); } }
   // clock stamp creeps toward 3:07 -> 3:08
   clockEl.textContent = t < 30 ? '3:07 AM' : '3:08 AM';
@@ -515,6 +571,7 @@ function update(dt) {
 
 function frame() {
   requestAnimationFrame(frame);
+  if (manual) return;
   const now = performance.now() / 1000, dt = Math.min(now - lastNow, .05); lastNow = now;
   if (playing && !ended) {
     tClock += dt; update(dt);
@@ -540,7 +597,11 @@ function begin() {
 const seekT = parseFloat(new URLSearchParams(location.search).get('t')) || 0;
 startEl.addEventListener('click', begin);
 addEventListener('keydown', e => { if (e.key === ' ' && !playing) begin(); });
-window.__ctl = { begin, seek: t => { reset(t); playing = false; film.uniforms.fade.value = 1; update(0); } };
+window.__ctl = {
+  renderAudioOffline,
+  prime(t0) { manual = true; startEl.classList.add('hidden'); reset(Math.max(0, t0 - 1.5)); playing = true; },
+  step(t, dt = 1 / 30) { tClock = t; update(dt); composer.render(dt); },
+  begin, seek: t => { reset(t); playing = false; film.uniforms.fade.value = 1; update(0); } };
 reset(seekT); update(0);
 frame();
 </script>
