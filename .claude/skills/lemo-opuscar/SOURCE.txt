@@ -1,0 +1,1 @@
+Source: https://github.com/lemomo-ai/lemo-opuscar (plugin/skills/lemo-opuscar), commit bebbbe1. MIT licensed (see LICENSE).
