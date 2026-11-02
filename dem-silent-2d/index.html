@@ -25,7 +25,7 @@
 
 <script>
 /* ============================================================================ utilities */
-const DURATION = 31.2, FPSF = 18, PW = 540, PH = 720;
+const DURATION = 31.2, FPSF = 24, PW = 540, PH = 960;
 const lerp = (a, b, t) => a + (b - a) * t, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const easeOut = x => 1 - Math.pow(1 - clamp(x, 0, 1), 3);
@@ -137,8 +137,8 @@ function drawInterior(tau, t, rew, dip) {
   g.save(); g.translate(270, 360); g.rotate(c.rot); g.scale(c.z, c.z); g.translate(-c.cx, -c.cy);
   const wl = g.createLinearGradient(0, 60, 0, 560); wl.addColorStop(0, V(54)); wl.addColorStop(.5, V(108)); wl.addColorStop(1, V(80)); g.fillStyle = wl; g.fillRect(-300, 60, 2400, 500);
   g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2; for (let x = -300; x < 2100; x += 46) { g.beginPath(); g.moveTo(x, 60); g.lineTo(x, 560); g.stroke(); }
-  g.fillStyle = V(20); g.fillRect(-300, 0, 2400, 62);
-  const fl = g.createLinearGradient(0, 560, 0, 780); fl.addColorStop(0, V(52)); fl.addColorStop(1, V(26)); g.fillStyle = fl; g.fillRect(-300, 560, 2400, 240);
+  g.fillStyle = V(20); g.fillRect(-300, -500, 2400, 562);
+  const fl = g.createLinearGradient(0, 560, 0, 780); fl.addColorStop(0, V(52)); fl.addColorStop(1, V(26)); g.fillStyle = fl; g.fillRect(-300, 560, 2400, 800);
   g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2; for (let k = 0; k < 6; k++) { const y = 575 + k * k * 4 + k * 12; g.beginPath(); g.moveTo(-300, y); g.lineTo(2100, y); g.stroke(); }
   g.fillStyle = V(30); g.fillRect(-300, 538, 2400, 24);
   // drapes
@@ -160,15 +160,15 @@ const HZ = 400, KY = 130, KX = 150;
 function drawForest(tau, t, rew) {
   const u = FW(tau), bob = Math.sin(u / .8 * Math.PI * 2) * 2.5 * smooth(11.4, 12, tau);
   g.save(); g.translate(0, bob);
-  const sk = g.createLinearGradient(0, 0, 0, HZ); sk.addColorStop(0, V(16)); sk.addColorStop(.6, V(70)); sk.addColorStop(1, V(112)); g.fillStyle = sk; g.fillRect(0, -10, PW, HZ + 12);
+  const sk = g.createLinearGradient(0, -240, 0, HZ); sk.addColorStop(0, V(44)); sk.addColorStop(.5, V(70)); sk.addColorStop(1, V(112)); g.fillStyle = sk; g.fillRect(0, -240, PW, HZ + 242);
   { const mg = g.createRadialGradient(400, 90, 6, 400, 90, 240); mg.addColorStop(0, 'rgba(255,255,255,.55)'); mg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = mg; g.fillRect(0, 0, PW, 380); g.fillStyle = V(238); g.beginPath(); g.arc(400, 90, 13, 0, 7); g.fill(); }
-  const gr = g.createLinearGradient(0, HZ, 0, PH + 10); gr.addColorStop(0, V(86)); gr.addColorStop(.18, V(30)); gr.addColorStop(1, V(6)); g.fillStyle = gr; g.fillRect(0, HZ, PW, PH - HZ + 10);
+  const gr = g.createLinearGradient(0, HZ, 0, PH + 10); gr.addColorStop(0, V(86)); gr.addColorStop(.18, V(30)); gr.addColorStop(1, V(6)); g.fillStyle = gr; g.fillRect(0, HZ, PW, 800);
   const wrapZ = z0 => ((z0 - u - .8) % 24 + 24) % 24 + .8;
   const items = FOR.trunks.map(tr => ({ tr, Z: wrapZ(tr.Z0) })).sort((a, b) => b.Z - a.Z);
   for (const { tr, Z } of items) {
     const x = 270 + tr.X * KX / Z, w = tr.wm * KX * 1.7 / Z, by = HZ + 1.6 * KY / Z, fogk = 1 - Math.exp(-Z / 12), tone = tr.tone * .6 + 34 * fogk;
-    g.fillStyle = V(tone); g.beginPath(); g.moveTo(x - w * .5, by); g.lineTo(x - w * .38, -20); g.lineTo(x + w * .38, -20); g.lineTo(x + w * .5, by); g.closePath(); g.fill();
-    if (w > 5) { g.strokeStyle = V(tone * .45); g.lineWidth = Math.max(1, w * .05); for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(x + (k - 1) * w * .22, by); g.lineTo(x + (k - 1) * w * .17, -20); g.stroke(); } g.strokeStyle = V(tone + 26); g.lineWidth = Math.max(1, w * .04); g.beginPath(); g.moveTo(x + w * .3, by); g.lineTo(x + w * .24, -20); g.stroke(); }
+    g.fillStyle = V(tone); g.beginPath(); g.moveTo(x - w * .5, by); g.lineTo(x - w * .38, -240); g.lineTo(x + w * .38, -240); g.lineTo(x + w * .5, by); g.closePath(); g.fill();
+    if (w > 5) { g.strokeStyle = V(tone * .45); g.lineWidth = Math.max(1, w * .05); for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(x + (k - 1) * w * .22, by); g.lineTo(x + (k - 1) * w * .17, -240); g.stroke(); } g.strokeStyle = V(tone + 26); g.lineWidth = Math.max(1, w * .04); g.beginPath(); g.moveTo(x + w * .3, by); g.lineTo(x + w * .24, -240); g.stroke(); }
   }
   for (const tf of FOR.tufts) { const Z = wrapZ(tf.Z0 + 3), x = 270 + tf.X * KX / Z, y = HZ + 1.6 * KY / Z, h = 90 / Z; g.fillStyle = V(10 + 20 * (1 - Math.exp(-Z / 8))); for (let k = 0; k < tf.n; k++) { g.beginPath(); g.moveTo(x + (k - tf.n / 2) * h * .12 - h * .05, y); g.lineTo(x + (k - tf.n / 2) * h * .2 + (k % 2 ? 1 : -1) * h * .1, y - h * (.6 + .4 * ((k * 7) % 3) / 3)); g.lineTo(x + (k - tf.n / 2) * h * .12 + h * .05, y); g.fill(); } }
   g.save(); g.globalCompositeOperation = 'lighter'; for (let k = 0; k < 3; k++) { const my = HZ + 18 + k * 38, mx = 270 + 90 * Math.sin(t * .05 + k * 2); const mg = g.createRadialGradient(mx, my, 10, mx, my, 330); mg.addColorStop(0, `rgba(150,165,185,${.14 - k * .03})`); mg.addColorStop(1, 'rgba(150,165,185,0)'); g.fillStyle = mg; g.save(); g.translate(0, my); g.scale(1, .16); g.translate(0, -my); g.fillRect(-100, my - 330, PW + 200, 660); g.restore(); } g.restore();
@@ -186,7 +186,7 @@ function drawForest(tau, t, rew) {
   let flick = 1; if (!rew && t > 15.9 && t < 16.5) flick = .25 + .75 * Math.round(noise1(t * 40) * .5 + .5); if (rew && t > 18.0 && t < 18.5) flick = .5 + .5 * Math.round(noise1(t * 35) * .5 + .5);
   const I = on * flick;
   if (I > .01) { const ax = 270 + 40 * noise1(t * 1.1), ay = 470 + 14 * noise1(t * 1.4 + 5); g.save(); g.globalCompositeOperation = 'lighter'; g.filter = 'blur(10px)';
-    const cg = g.createLinearGradient(440, 720, ax, ay); cg.addColorStop(0, `rgba(255,246,225,${.28 * I})`); cg.addColorStop(1, `rgba(255,246,225,${.05 * I})`); g.fillStyle = cg; g.beginPath(); g.moveTo(450, 725); g.lineTo(ax - 120, ay - 18); g.lineTo(ax + 120, ay - 18); g.lineTo(480, 725); g.closePath(); g.fill();
+    const cg = g.createLinearGradient(440, 840, ax, ay); cg.addColorStop(0, `rgba(255,246,225,${.28 * I})`); cg.addColorStop(1, `rgba(255,246,225,${.05 * I})`); g.fillStyle = cg; g.beginPath(); g.moveTo(450, 850); g.lineTo(ax - 120, ay - 18); g.lineTo(ax + 120, ay - 18); g.lineTo(480, 850); g.closePath(); g.fill();
     g.save(); g.translate(ax, ay); g.scale(1.5, .62); const pg = g.createRadialGradient(0, 0, 8, 0, 0, 150); pg.addColorStop(0, `rgba(255,248,230,${.75 * I})`); pg.addColorStop(.6, `rgba(255,248,230,${.28 * I})`); pg.addColorStop(1, 'rgba(255,248,230,0)'); g.fillStyle = pg; g.fillRect(-160, -160, 320, 320); g.restore(); g.restore(); }
   g.restore();
 }
@@ -210,18 +210,18 @@ function drawCorridor(t) {
   const fg = g.createLinearGradient(270, 432, 270, 560); fg.addColorStop(0, `rgba(235,245,255,${.55 + .3 * open})`); fg.addColorStop(1, 'rgba(235,245,255,0)'); g.fillStyle = fg; g.beginPath(); g.moveTo(236, 432); g.lineTo(304, 432); g.lineTo(380, 640); g.lineTo(160, 640); g.closePath(); g.fill();
   const halo = g.createRadialGradient(270, 366, 10, 270, 366, 200); halo.addColorStop(0, `rgba(235,245,255,${.18 + .5 * open})`); halo.addColorStop(1, 'rgba(235,245,255,0)'); g.fillStyle = halo; g.fillRect(0, 100, PW, 520); g.restore();
   g.restore();
-  if (open > 0) { g.save(); g.globalCompositeOperation = 'lighter'; const fl = g.createRadialGradient(270, 350, 10, 270, 350, 140 + 900 * open); fl.addColorStop(0, `rgba(255,255,255,${.85 * open})`); fl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = fl; g.fillRect(0, 0, PW, PH); g.restore(); }
+  if (open > 0) { g.save(); g.globalCompositeOperation = 'lighter'; const fl = g.createRadialGradient(270, 350, 10, 270, 350, 140 + 900 * open); fl.addColorStop(0, `rgba(255,255,255,${.85 * open})`); fl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = fl; g.fillRect(0, -300, PW, PH + 600); g.restore(); }
 }
 
 function drawScene(t) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.fillRect(0, 0, PW, PH);
-  if (t >= 26.9) { drawCorridor(t); return; }
+  if (t >= 26.9) { g.save(); g.translate(0, 120); drawCorridor(t); g.restore(); return; }
   const tau = tauOf(t), rew = t >= 17.8, dip = dipAt(t) + (rew ? .55 * (bump(t, 24.6, .1) + bump(t, 25.3, .1)) : 0);
   const ia = 1 - smooth(10.2, 10.9, tau);
-  if (ia > .01) { drawInterior(tau, t, rew, dip); if (ia < 1) { g.fillStyle = `rgba(0,0,0,${1 - ia})`; g.fillRect(0, 0, PW, PH); } }
-  const fa = smooth(10.9, 11.5, tau); if (fa > .01) { g.save(); g.globalAlpha = fa; drawForest(tau, t, rew); g.restore(); }
+  if (ia > .01) { g.save(); g.translate(0, 120); drawInterior(tau, t, rew, dip); g.restore(); if (ia < 1) { g.fillStyle = `rgba(0,0,0,${1 - ia})`; g.fillRect(0, 0, PW, PH); } }
+  const fa = smooth(10.9, 11.5, tau); if (fa > .01) { g.save(); g.translate(0, 120); g.globalAlpha = fa; drawForest(tau, t, rew); g.restore(); }
   g.fillStyle = `rgba(0,0,0,${.12 + .5 * dip})`; g.fillRect(0, 0, PW, PH);
-  const vg = g.createRadialGradient(270, 360, 150, 270, 360, 470); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0, 0, PW, PH);
+  const vg = g.createRadialGradient(270, 480, 200, 270, 480, 600); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.4)'); g.fillStyle = vg; g.fillRect(0, 0, PW, PH);
 }
 
 /* ============================================================================ the print: gate, curtains, toning, inked contours, damage */
@@ -230,42 +230,24 @@ const VS = `#version 300 es
 in vec2 p; out vec2 vUv; void main(){ vUv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
 const FS = `#version 300 es
 precision highp float;
-uniform sampler2D tS; uniform float time, frame, iris, defocus, damage; uniform vec2 res; uniform vec3 tSh, tMd, tHi; in vec2 vUv; out vec4 outc;
-float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
-float h1(float x){ return fract(sin(x*91.3458)*47453.5453); }
+uniform sampler2D tS; uniform float fade, defocus; uniform vec2 res; uniform vec3 tSh, tMd, tHi; in vec2 vUv; out vec4 outc;
+float lum(vec3 c){ return dot(c, vec3(.299,.587,.114)); }
 vec3 scn(vec2 uv){
-  if (defocus > .0005) { vec3 s = vec3(0.); float tot = 0.; for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) { float wg = exp(-float(i*i + j*j) * .22); s += texture(tS, uv + vec2(float(i), float(j)) * defocus * vec2(.75, 1.)).rgb * wg; tot += wg; } return s / tot; }
+  if (defocus > .0005) { vec3 s = vec3(0.); float tot = 0.; for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) { float wg = exp(-float(i*i + j*j) * .22); s += texture(tS, uv + vec2(float(i), float(j)) * defocus * vec2(.5625, 1.)).rgb * wg; tot += wg; } return s / tot; }
   return texture(tS, uv).rgb;
 }
-float lum(vec3 c){ return dot(c, vec3(.299,.587,.114)); }
 void main(){
-  vec2 uv = vUv; float ar = res.x / res.y, fr = frame;
-  float ay = (uv.y - .125) / .75, od = ay < 0. ? -ay : (ay > 1. ? ay - 1. : 0.);
-  float f = .5 + .5 * sin(uv.x * 64. + sin(uv.y * 5.) * .7); f *= f;
-  float foot = exp(-od * 9.) * (ay > 1. ? .75 : .25);
-  vec3 cur = mix(vec3(.025,.004,.008), vec3(.26,.04,.05), f) * (.32 + 1.1 * foot);
-  vec2 pp = (uv - .5) * res, hx = vec2(res.x * .5 - 6., res.y * .375 - 6.), q = abs(pp) - hx + 30.;
-  float sdf = length(max(q, 0.)) - 30., maskA = 1. - smoothstep(-2., 7., sdf);
-  vec2 wv = vec2(h1(fr) - .5, h1(fr + 7.) - .5) * vec2(.0016, .0012); if (h1(floor(fr / 11.) + 3.) > .93) wv.y += (h1(fr) - .5) * .012;
-  vec2 su = vec2(uv.x, ay) + wv; vec2 px = 1. / vec2(540., 720.);
-  vec3 c = scn(su); float l = lum(c);
-  float e = abs(4. * l - lum(scn(su + vec2(px.x * 1.4, 0.))) - lum(scn(su - vec2(px.x * 1.4, 0.))) - lum(scn(su + vec2(0., px.y * 1.4))) - lum(scn(su - vec2(0., px.y * 1.4))));
-  float flick = .92 + .08 * h1(fr * 1.31) + .02 * sin(time * 53.);
-  float lt = clamp((l - .015) / .9, 0., 1.); lt = lt * lt * (3. - 2. * lt); lt = (.045 + .88 * lt) * flick;
+  vec2 uv = vUv, px = 1. / vec2(540., 960.);
+  vec3 c = scn(uv); float l = lum(c);
+  float e = abs(4. * l - lum(scn(uv + vec2(px.x * 1.3, 0.))) - lum(scn(uv - vec2(px.x * 1.3, 0.))) - lum(scn(uv + vec2(0., px.y * 1.3))) - lum(scn(uv - vec2(0., px.y * 1.3))));
+  float lt = clamp((l - .01) / .92, 0., 1.); lt = lt * lt * (3. - 2. * lt); lt = .03 + .9 * lt;
   vec3 tint = lt < .5 ? mix(tSh, tMd, lt * 2.) : mix(tMd, tHi, (lt - .5) * 2.);
   tint *= mix(vec3(1.), clamp(c / max(l, .02), 0., 3.), .15);
   float red = clamp((c.r - 2.6 * max(c.g, c.b)) * 5., 0., 1.) * smoothstep(.05, .3, c.r);
   vec3 col = mix(tint, vec3(c.r * 1.2, c.g * .3, c.b * .3) * 1.4, red);
-  col *= 1. - clamp(e * 3.6, 0., .65);
-  col *= 1. - (1. - smoothstep(.0, .16, l)) * step(.55, fract((gl_FragCoord.x + gl_FragCoord.y) / 6.5)) * .2;
-  for (int k = 0; k < 3; k++) { float fk = float(k), x = h1(fr * 3.7 + fk * 17.1), on = step(h1(fr * 1.9 + fk * 5.3), .2 + damage * .5); float ln = (1. - smoothstep(.0003, .0012, abs(uv.x - x))) * on; col = mix(col, vec3(.9, .86, .78) * (h1(fr + fk) > .5 ? 1. : .1), ln * .55); }
-  float dust = step(.9987 - damage * .004, h(floor(gl_FragCoord.xy / 1.7) + fr * 13.)); col = mix(col, vec3(.95, .93, .86), dust * .7);
-  float dirt = step(.9992 - damage * .002, h(floor(gl_FragCoord.xy / 2.2) + fr * 29. + 5.)); col *= 1. - dirt * .7;
-  col += (h(gl_FragCoord.xy + fr * 37.) - .5) * (.08 + damage * .05) * (1.1 - lt);
-  vec2 cc = (uv - .5) * vec2(ar, 1.); float edge = length(cc) / length(vec2(ar * .5, .5));
-  col *= 1. - smoothstep(.28, 1., edge) * .6; col = mix(col, vec3(.40, .15, .04) * .45, smoothstep(.62, 1., edge) * (.25 + .6 * damage) * .5);
-  float r = length(cc), maxR = length(vec2(ar * .5, .5)), ir = 1. - smoothstep(iris * maxR * 1.05 - .012, iris * maxR * 1.05 + .012, r);
-  outc = vec4(max(mix(cur, col * ir, maskA), 0.), 1.);
+  col *= 1. - clamp(e * 3., 0., .55);
+  vec2 cc = (uv - .5) * vec2(res.x / res.y, 1.); col *= 1. - smoothstep(.35, 1., length(cc) / length(vec2(res.x / res.y * .5, .5))) * .3;
+  outc = vec4(max(col * fade, 0.), 1.);
 }`;
 function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
 const prog = gl.createProgram(); gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
@@ -274,17 +256,16 @@ const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl
 const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 const U = n => gl.getUniformLocation(prog, n);
-const u = { tS: U('tS'), time: U('time'), frame: U('frame'), iris: U('iris'), defocus: U('defocus'), damage: U('damage'), res: U('res'), tSh: U('tSh'), tMd: U('tMd'), tHi: U('tHi') };
+const u = { tS: U('tS'), fade: U('fade'), defocus: U('defocus'), res: U('res'), tSh: U('tSh'), tMd: U('tMd'), tHi: U('tHi') };
 const TINTS = { house: [[.02, .04, .09], [.16, .30, .40], [.95, .76, .50]], forest: [[.01, .045, .04], [.10, .28, .25], [.80, .92, .76]], rewind: [[.05, .04, .02], [.30, .30, .12], [.92, .88, .60]], end: [[.06, .02, .02], [.36, .16, .12], [1, .90, .70]] };
 function tintAt(t) { const mixT = (a, b, k) => a.map((c, i) => c.map((v, j) => lerp(v, b[i][j], k))); let T0 = mixT(TINTS.house, TINTS.forest, smooth(8.6, 9.6, t)); T0 = mixT(T0, TINTS.rewind, smooth(17.4, 18.4, t)); return mixT(T0, TINTS.end, smooth(26.9, 27.4, t)); }
 function render(t) {
   const tq = Math.floor(t * FPSF + 1e-6) / FPSF;       // the projector gives eighteen pictures a second
   drawScene(tq);
   gl.viewport(0, 0, glc.width, glc.height); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sc);
-  gl.uniform1i(u.tS, 0); gl.uniform1f(u.time, t); gl.uniform1f(u.frame, Math.floor(t * FPSF)); gl.uniform2f(u.res, glc.width, glc.height);
-  gl.uniform1f(u.iris, clamp(smooth(0, 1.4, t) * (1 - smooth(25.7, 26.7, t)) + smooth(27.0, 28.4, t), 0, 1));
+  gl.uniform1i(u.tS, 0); gl.uniform2f(u.res, glc.width, glc.height);
+  gl.uniform1f(u.fade, clamp(smooth(0, 1.4, t) * (1 - smooth(25.7, 26.7, t)) + smooth(27.0, 28.4, t), 0, 1));
   gl.uniform1f(u.defocus, t < 27.0 ? (1 - smooth(0, 1.4, t)) * .004 : (1 - smooth(27.1, 28.6, t)) * .014);
-  gl.uniform1f(u.damage, .18 + .55 * smooth(17.6, 19, t) * (1 - smooth(24.5, 26.2, t)) + .15 * bump(t, 9.2, .5));
   const [S, M, Hh] = tintAt(t); gl.uniform3f(u.tSh, ...S); gl.uniform3f(u.tMd, ...M); gl.uniform3f(u.tHi, ...Hh);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
@@ -314,7 +295,6 @@ function drones() {
 }
 function scheduleAudio(b) {
   drones();
-  for (let t = 0; t < 31; t += 1 / FPSF) noiseHit(b + t, .012, 'bandpass', 2200, 3, .016, 0, .02);              // the projector in the booth
   [[2.0, 220], [3.0, 311.1], [4.2, 207.7], [5.3, 110], [5.3, 116.5], [10.2, 164.8], [13.4, 220], [14.4, 233.1], [18.2, 311.1], [19.4, 293.7], [20.6, 277.2], [21.8, 261.6], [23.0, 246.9], [24.6, 110], [24.6, 116.5], [30.3, 261.6], [30.3, 329.6], [30.3, 392]].forEach(([t, f]) => piano(b + t, f));
   const ramp = (p, pts) => { p.setValueAtTime(pts[0][1], b + pts[0][0]); pts.slice(1).forEach(([t, v]) => p.linearRampToValueAtTime(v, b + t)); };
   ramp(nodes.dg.gain, [[0, .04], [4.4, .08], [5.2, .2], [6.5, .08], [9, .1], [11, .06], [16, .12], [17.8, .22], [20, .3], [23.8, .2], [26, .45], [26.7, 0], [27.2, .1], [30, .3], [31, .35], [31.2, 0]]);
