@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script type="module">
+const style = new URLSearchParams(location.search).get('style') || 'backrooms';
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+const mod = await import(`./styles/${style}.js`);
+window.DUR = 3; window.TEXTS = () => [];
+window.render = t => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none'; ctx.clearRect(0, 0, 1080, 1920); mod.draw(ctx, t); };
+window.READY = true;
+</script></body></html>
