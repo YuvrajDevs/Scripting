@@ -41,7 +41,11 @@ When the user says **"create in mat style"**, this is what they mean.
   - Items land by **dropping from height** (real 3D, so they shrink and their shadow tightens and sharpens), with a small bounce.
   - Liquids ripple through vertex animation.
   - Things soften as they cook (a block flattens and spreads).
-- **Words:** white or cream, with a dark outline matching the surface (`rgba(6,38,24,.9)` on the green mat), a drop shadow (red for the key word), and words popping in one by one. They sit at the top of the frame, clear of the props.
+- **Words:**
+  - **Font:** **Poppins Bold (700)**. It's in `ramen-lowpoly/fonts/` (woff2 from the npm package `@fontsource/poppins`, because the font CDNs are blocked). Load it with `FontFace` before setting `READY`.
+  - **No outline or border.** Use only a **very slight soft shadow**: `shadowColor rgba(0,20,10,.28)`, `shadowBlur = size*.12`, `shadowOffsetY = size*.03`.
+  - **Colours:** white, with cream `#fff2a8` for the key word.
+  - **Animation:** words pop in one by one (rise, fade and a slight scale overshoot). They sit at the top of the frame, clear of the props.
 
 ## Render
 ```bash

@@ -164,12 +164,12 @@ function poseProps(t) {
 
 // ---------------------------------------------------------------- words (smooth), photo, composite
 const out = document.getElementById('c'), g = out.getContext('2d');
-const FONT = '"Arial Rounded MT Bold","Nunito","DejaVu Sans","Arial Black",sans-serif';
-function text(s, x, y, size, fill, o = {}) { g.save(); g.globalAlpha = o.a ?? 1; g.translate(x, y); g.scale(o.sx ?? 1, o.sx ?? 1); g.font = `900 ${size}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-  if (o.shadow) { g.fillStyle = o.shadow; g.fillText(s, 6, 8); } g.lineWidth = size * .12; g.strokeStyle = 'rgba(6,38,24,.9)'; g.lineJoin = 'round'; g.strokeText(s, 0, 0); g.fillStyle = fill; g.fillText(s, 0, 0); g.restore(); }
+const FONT = 'Poppins, sans-serif';
+function text(s, x, y, size, fill, o = {}) { g.save(); g.globalAlpha = o.a ?? 1; g.translate(x, y); g.scale(o.sx ?? 1, o.sx ?? 1); g.font = `700 ${size}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(0,20,10,.28)'; g.shadowBlur = size * .12; g.shadowOffsetY = size * .03; g.fillStyle = fill; g.fillText(s, 0, 0); g.restore(); }
 function words(arr, x, y, size, fill, t, outT, shadow = '#06261a') {
-  g.font = `900 ${size}px ${FONT}`; const gap = size * .28; let ws = arr.map(([w]) => g.measureText(w).width), tot = ws.reduce((a, b) => a + b, 0) + gap * (arr.length - 1);
-  if (tot > 900) { size *= 900 / tot; g.font = `900 ${size}px ${FONT}`; ws = arr.map(([w]) => g.measureText(w).width); tot = ws.reduce((a, b) => a + b, 0) + size * .28 * (arr.length - 1); }
+  g.font = `700 ${size}px ${FONT}`; const gap = size * .28; let ws = arr.map(([w]) => g.measureText(w).width), tot = ws.reduce((a, b) => a + b, 0) + gap * (arr.length - 1);
+  if (tot > 900) { size *= 900 / tot; g.font = `700 ${size}px ${FONT}`; ws = arr.map(([w]) => g.measureText(w).width); tot = ws.reduce((a, b) => a + b, 0) + size * .28 * (arr.length - 1); }
   let cx = x - tot / 2; arr.forEach(([w, s, col], i) => { const p = seg(t, s, .55), f = 1 - seg(t, outT, .45), wx = cx + ws[i] / 2; cx += ws[i] + size * .28; if (p <= 0 || f <= 0) return;
     text(w, wx, y + (1 - oC(p)) * 30 - (1 - f) * 18, size, col || fill, { a: clamp(p * 2.5) * f, sx: .9 + .1 * oS(p), shadow }); });
 }
@@ -185,4 +185,5 @@ window.render = t => {
   words([['add', 5.2], ['toppings', 5.45]], 540, 290, 160, '#ffffff', t, 6.9);
   words([['ready', 7.1, '#fff2a8']], 540, 290, 200, '#fff2a8', t, 99, '#c8432c');
 };
-bg.decode().then(() => { window.render(0); window.READY = true; });
+const faces = ['600', '700'].map(w => new FontFace('Poppins', `url(fonts/poppins-latin-${w}-normal.woff2)`, { weight: w }));
+Promise.all([bg.decode(), ...faces.map(f => f.load().then(ff => document.fonts.add(ff)))]).then(() => { window.render(0); window.READY = true; });
