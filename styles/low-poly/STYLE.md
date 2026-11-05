@@ -92,23 +92,18 @@ These are reusable parts, not the definition of the style.
 
 ---
 
-## Cinematic golden-hour variant (approved test: `lowpoly-autumn/`)
-From the user's autumn-ghost reference: warm, aesthetic, cinematic.
-- **Light:**
-  - A low golden sun `#ffb866` (intensity ~6), coming from behind and to the side.
-  - Crisp PCF soft shadows on a 4096 map over ±11m, so leaf cards cast **dappled shadows** on the ground and bench.
-  - Hemisphere light `#ffd2a0`/`#7a3626`, and warm fog `#f0a06a` (14–42m).
-- **Light shafts:** additive gradient planes, cylindrically billboarded around the sun direction so they always face the camera, at opacity .13–.21.
-- **Foliage:** faceted icosahedron canopies (per-face autumn colours) plus ~700 instanced leaf cards per tree, which give the shadow dapple and a painterly edge. Leaf litter is instanced on the ground.
-- **Drifting leaves:** 140 instanced, closed-form looping fall with sway and spin.
-- **Glossy paving:** roughness .32, metalness .15, so it picks up warm reflections.
-- **Post:**
-  - BokehPass depth of field on close-ups, with focus set to the subject's distance (aperture .006).
-  - Bloom .55–.65, threshold .78.
-  - Grade: saturation ×1.14, **split tone** (rosy shadows +(.05,−.01,.04), amber highlights +(.04,.015,−.03)), a strong vignette and fine grain.
-- **Camera language:** slow, eased, smooth 25fps moves with hard cuts between shots, using three shot types:
-  - A crane down through the canopy.
-  - A straight-down overhead with a slow turn.
-  - A low dolly-in with shallow focus.
-- **Characters:** a faceted loft body with per-face colour. Keep markings small (chest bib, socks, tail tip). Add idle life: breathing, tail sway, ear twitches, a head that follows events.
-- **Render:** about 7 min per 10s with depth of field. Re-encode with `-crf 20` before committing (the raw output was 87MB).
+## Cinematic golden-hour variant (`lowpoly-autumn/`, rebuilt to match the dino look)
+Cinematic camera and golden light from the user's autumn reference, but **rendered in the dino style**. The first attempt drifted into a different look (orange fog wash, no sky, orange shadows, grain, empty world), and the user rejected it.
+- **Keep the dino rendering rules:**
+  - Clear air (fog only far away, 30–110m).
+  - A **painted anime sky** (the `cloud()` painter, with a golden-hour gradient from cobalt down to gold at the horizon).
+  - A cool hemisphere light (`#8ea8e0`), so **shadow facets go cool blue-purple against warm sunlit facets**.
+  - Green faceted grass so the autumn trees pop.
+  - A **readable world** (houses with lit windows, a lamp post, a bin).
+- **Painted facets:** a ±4.5–6% per-vertex variation inside each face, giving a soft gradient across the facet.
+- **Post like the dino:**
+  - Bloom .28, threshold .85.
+  - Saturation ×1.1, a slight cool shadow lift, vignette .5.
+  - **No grain, no heavy split tone.** Subtle depth of field only on close-ups (aperture .0025).
+- **Kept from the reference:** a low golden sun with crisp dappled leaf shadows, faint light shafts (opacity .07–.12), drifting leaves, and slow eased cinematic moves (a crane down through the canopy, an overhead turn, a low dolly-in), with hard cuts between shots.
+- **Render:** about 8 min per 10s. Re-encode with `-crf 20`.
