@@ -7,7 +7,7 @@ const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, t)
 const seg = (t, s, d) => clamp((t - s) / d), io = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, sm = t => t * t * (3 - 2 * t);
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
 renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -29,8 +29,10 @@ scene.background = (() => { const c = document.createElement('canvas'); c.width 
 scene.fog = new THREE.Fog('#bcdcf4', 70, 330);
 const hemi = new THREE.HemisphereLight('#eef4ff', '#d8d8a0', 1.9); scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff6e4', 3.4); sun.position.set(-90, 110, -40); sun.target.position.set(0, 0, -140); scene.add(sun, sun.target);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 10, far: 400 }); sun.shadow.bias = -.0005; sun.shadow.radius = 3;
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 10, far: 400 }); sun.shadow.bias = -.0008; sun.shadow.normalBias = .04; sun.shadow.radius = 3;
 const MS = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .9, ...o });
+// a decal layer: a fixed depth priority over the surface underneath, so it never fights it
+const DECAL = (m, k = 1) => { m.polygonOffset = true; m.polygonOffsetFactor = -2 * k; m.polygonOffsetUnits = -4 * k; return m; };
 const meshX = 0; const mesh = (geo, mat, par = scene, cast = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = true; par.add(m); return m; };
 
 // ---------------------------------------------------------------- outside: the hill (the door faces -z; the hill crest is ~50 m out)
@@ -45,15 +47,15 @@ const onHill = (x, z) => new V3(x, groundH(x, z), z);
 function path(pts, w) { const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => onHill(x, z))), N = 160, pos = [], idx = [];
   for (let i = 0; i <= N; i++) { const u = i / N, c = curve.getPoint(u), tg = curve.getTangent(u), side = new V3(-tg.z, 0, tg.x).normalize().multiplyScalar(w * (.85 + .3 * Math.sin(u * 40)));
     for (const s of [-1, 1]) { const q = c.clone().addScaledVector(side, s); q.y = groundH(q.x, q.z) + .1; pos.push(q.x, q.y, q.z); } if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); mesh(g, MS('#efe9dc', { roughness: 1 }), scene, false); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); const pm = mesh(g, DECAL(MS('#efe9dc', { roughness: 1 }), 2), scene, false); pm.renderOrder = 1; }
 path([[0.3, -1.2], [.8, -12], [-4, -32], [-13, -58], [-9, -84], [3, -102], [-3, -118], [-13, -134], [-18, -150]], .26);
 path([[3, -102], [18, -108], [34, -120], [46, -134]], .22);
 // little white houses with orange roofs
 function house(x, z, ry, s = 1) { const g = new THREE.Group(), y = hillH(x, z); g.position.set(x, y - .1, z); g.rotation.y = ry; g.scale.setScalar(s); scene.add(g);
   mesh(new THREE.BoxGeometry(6, 3.4, 4.4), MS('#f4f1ea'), g).position.y = 1.7;
   const roof = mesh(new THREE.ConeGeometry(4.6, 1.8, 4, 1), MS('#de8448', { roughness: .8 }), g); roof.position.y = 4.3; roof.rotation.y = Math.PI / 4; roof.scale.set(1.0, 1, .76);
-  const dark = MS('#2b2a2c', { roughness: .6 }); for (const [px, py, w, h] of [[-1.6, 1.9, .9, .9], [1.6, 1.9, .9, .9], [0, 1.1, .9, 2.0]]) mesh(new THREE.BoxGeometry(w, h, .1), dark, g, false).position.set(px, py, 2.22);
-  mesh(new THREE.BoxGeometry(.1, .9, .9), dark, g, false).position.set(3.02, 1.9, 0);
+  const dark = DECAL(MS('#2b2a2c', { roughness: .6 })); for (const [px, py, w, h] of [[-1.6, 1.9, .9, .9], [1.6, 1.9, .9, .9], [0, 1.1, .9, 2.0]]) mesh(new THREE.BoxGeometry(w, h, .04), dark, g, false).position.set(px, py, 2.24);
+  mesh(new THREE.BoxGeometry(.04, .9, .9), dark, g, false).position.set(3.04, 1.9, 0);
   mesh(new THREE.BoxGeometry(.5, .9, .5), MS('#d8d2c6'), g).position.set(1.6, 5.0, -.6); return g; }
 house(-38, -134, .25, 1.6); house(-14, -152, .1, 1.55); house(2, -130, -.05, 1.6); house(36, -138, -.3, 1.55); house(52, -156, -.2, 1.5);
 // water tower on the crest
@@ -84,8 +86,8 @@ const room = new THREE.Group(); scene.add(room);
 const door = new THREE.Group(); door.position.set(-.5, 0, -.0); room.add(door);
 { const panel = MS('#d6cec2'), dk = MS('#4a3020');
   const d = mesh(new THREE.BoxGeometry(1.0, 2.14, .06), panel, door); d.position.set(.5, 1.07, .04);
-  for (const [y, h] of [[1.55, .75], [.6, .75]]) for (const x of [.27, .73]) mesh(new THREE.BoxGeometry(.34, h, .03), MS('#e2dcd2'), door).position.set(x, y, .085);
-  const knob = mesh(new THREE.SphereGeometry(.04, 10, 8), MS('#c9a24a', { metalness: .8, roughness: .3 }), door); knob.position.set(.9, 1.0, .12); mesh(new THREE.BoxGeometry(.06, .16, .02), dk, door).position.set(.9, 1.0, .08); }
+  for (const [y, h] of [[1.55, .75], [.6, .75]]) for (const x of [.27, .73]) mesh(new THREE.BoxGeometry(.34, h, .03), DECAL(MS('#e2dcd2')), door).position.set(x, y, .088);
+  const knob = mesh(new THREE.SphereGeometry(.04, 10, 8), MS('#c9a24a', { metalness: .8, roughness: .3 }), door); knob.position.set(.9, 1.0, .12); mesh(new THREE.BoxGeometry(.06, .16, .02), DECAL(dk), door).position.set(.9, 1.0, .082); }
 // warm dim lamp inside; daylight spill through the doorway
 const lamp = new THREE.PointLight('#fff0dc', 6, 12, 1.2); lamp.position.set(-1.6, 2.4, 3.2); scene.add(lamp);
 const spill = new THREE.SpotLight('#fff3dc', 0, 14, .7, .6, 1.2); spill.position.set(0, 2.1, -3); spill.target.position.set(0, 0, 3.5); scene.add(spill, spill.target);
@@ -133,7 +135,7 @@ const outM = new THREE.ShaderMaterial({ uniforms: { src: { value: rtScene.textur
   }` });
 const kQuad = new THREE.Mesh(quadGeo, kuwa), oQuad = new THREE.Mesh(quadGeo, outM), kScene = new THREE.Scene(), oScene = new THREE.Scene(); kScene.add(kQuad); oScene.add(oQuad);
 
-const cam = new THREE.PerspectiveCamera(60, W / H, .05, 600);
+const cam = new THREE.PerspectiveCamera(60, W / H, .1, 600);
 window.DUR = 10; window.TEXTS = () => [];
 window.render = t => {
   // timeline: 0–1.6 walk up to the door; 1.6–3.6 the door swings open; 3.6–7.6 step through and out; 7.6–10 stand on the path and take in the hill

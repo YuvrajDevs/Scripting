@@ -95,3 +95,13 @@ When the user says **"create in PS2"**, this is what they mean. **Current target
 - **Limits:**
   - The projected ground stretches if the camera travels far (more than about 10m). Keep moves short, or let the smear hide it.
   - The HDRI is a single location, so you can't travel through it; it's one place per shot.
+
+## No z-fighting (apply to every PS2 build)
+- `WebGLRenderer({ logarithmicDepthBuffer: true })`, and a camera near plane of at least .1.
+- Any layer that sits on another surface (paths, windows, doors, panels, signs, puddles, posters) is a **decal**:
+  - `material.polygonOffset = true`, with factor −2k and units −4k (k = priority).
+  - `renderOrder` ≥ 1.
+  - Use a thin plate (.02–.04) placed just in front of the surface, never sharing its face.
+- Never let two faces share the same plane. Offset by at least 1cm.
+- Shadow bias −.0008 and normalBias .04, to stop shadow shimmer on slopes.
+- **Check:** frame-to-frame diffs over a static region should change smoothly. Erratic spikes mean flicker.
