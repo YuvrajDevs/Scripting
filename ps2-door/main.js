@@ -86,7 +86,7 @@ const room = new THREE.Group(); scene.add(room);
 const door = new THREE.Group(); door.position.set(-.5, 0, -.0); room.add(door);
 { const panel = MS('#d6cec2'), dk = MS('#4a3020');
   const d = mesh(new THREE.BoxGeometry(1.0, 2.14, .06), panel, door); d.position.set(.5, 1.07, .04);
-  for (const [y, h] of [[1.55, .75], [.6, .75]]) for (const x of [.27, .73]) mesh(new THREE.BoxGeometry(.34, h, .03), DECAL(MS('#e2dcd2')), door).position.set(x, y, .088);
+  for (const [y, h] of [[1.55, .75], [.6, .75]]) for (const x of [.27, .73]) mesh(new THREE.BoxGeometry(.34, h, .006), DECAL(MS('#e2dcd2')), door).position.set(x, y, .075);
   const knob = mesh(new THREE.SphereGeometry(.04, 10, 8), MS('#c9a24a', { metalness: .8, roughness: .3 }), door); knob.position.set(.9, 1.0, .12); mesh(new THREE.BoxGeometry(.06, .16, .02), DECAL(dk), door).position.set(.9, 1.0, .082); }
 // warm dim lamp inside; daylight spill through the doorway
 const lamp = new THREE.PointLight('#fff0dc', 6, 12, 1.2); lamp.position.set(-1.6, 2.4, 3.2); scene.add(lamp);
@@ -99,7 +99,7 @@ const beam = (() => { const m = new THREE.MeshBasicMaterial({ color: '#fff2d6', 
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-.5, 2.1, 0, .5, 2.1, 0, .5, 0, 0, -.5, 0, 0, -.9, 0, 3.6, .9, 0, 3.6], 3)); g.setIndex([0, 1, 2, 0, 2, 3, 3, 2, 5, 3, 5, 4]); const b = new THREE.Mesh(g, m); scene.add(b); return b; })();
 
 // ---------------------------------------------------------------- PS2 look: low-res render → Kuwahara smear → soft upscale
-const rtScene = new THREE.WebGLRenderTarget(LW, LH, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType });
+const SS = 4; const rtScene = new THREE.WebGLRenderTarget(LW * SS, LH * SS, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType });
 const rtPaint = new THREE.WebGLRenderTarget(LW, LH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: THREE.HalfFloatType });
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quadGeo = new THREE.PlaneGeometry(2, 2);
 const vs = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
@@ -127,7 +127,8 @@ const outM = new THREE.ShaderMaterial({ uniforms: { src: { value: rtScene.textur
     float v = 0.; for (int k = 0; k < 16; k++) if (k == i) v = m[k]; return v / 16.; }
   void main(){
     vec2 lp = floor(vUv * res), uv = (lp + .5) / res;
-    vec3 c = texture2D(src, uv).rgb;
+    // supersampled: each console pixel is the average of a 4x4 block of the full-res render, so sub-pixel detail stays stable
+    vec3 c = vec3(0.); for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) c += texture2D(src, (lp + (vec2(float(i), float(j)) + .5) / 4.) / res).rgb; c /= 16.;
     vec3 b = vec3(0.); for (int i = 0; i < 12; i++) { float a = float(i) * .5236; for (int k = 1; k <= 2; k++) b += max(texture2D(src, uv + vec2(cos(a), sin(a)) * float(k) * 3. / res).rgb - .7, 0.); } c += b / 24. * .8;
     float lv = 31.; c = floor(c * lv + bayer(lp)) / lv;
     vec2 d = vUv - .5; c *= 1. - dot(d, d) * .3;

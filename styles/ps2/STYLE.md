@@ -105,3 +105,8 @@ When the user says **"create in PS2"**, this is what they mean. **Current target
 - Never let two faces share the same plane. Offset by at least 1cm.
 - Shadow bias −.0008 and normalBias .04, to stop shadow shimmer on slopes.
 - **Check:** frame-to-frame diffs over a static region should change smoothly. Erratic spikes mean flicker.
+- **Logarithmic depth disables polygon offset.** With `logarithmicDepthBuffer`, the shader writes depth itself, so `polygonOffset` has no effect. Separate decals by real geometry: a few millimetres up close, centimetres far away.
+- **Shimmer and crawl at 270×480 is aliasing, not depth fighting.** It happens when detail is thinner than one console pixel (panel seams, far paths, tiny windows).
+  - **Supersample:** render the scene at 4× (1080×1920), then average each 4×4 block into one console pixel in the output shader, before dither and nearest upscale.
+  - The chunky look stays, and thin details become stable shades instead of popping.
+- **Inset panels** (doors, cabinets): use near-flush plates (~6mm thick, 5mm proud), so their side walls don't make 1px lines that break up.
