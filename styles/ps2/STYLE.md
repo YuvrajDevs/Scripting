@@ -64,3 +64,18 @@ When the user says **"create in PS2"** (or "PS2 style"), this is what they mean.
   - A tall cone in three smooth jointed lathe sections that bend back. It's tilted back so the face shows.
   - The brim doesn't cast shadows (otherwise the face goes black).
 - **World textures:** fbm noise ramps (grass, path, bark, leaves) instead of blotches. They smear into a believable, photo-ish mush. Canopies don't cast shadows, so the character stays sunlit.
+
+## Photo-real environments (fourth pass, current)
+- **Use real photographic HDRIs.** The reference worlds are photo-real, and procedural scenery never gets there.
+  - Source: the npm package `@pmndrs/assets` (CC0 Poly Haven HDRIs, about 1k), reachable through the npm registry. Asset sites like polyhaven.com and ambientcg are blocked here.
+  - Extract with `npm pack @pmndrs/assets`, then base64-decode `hdri/<name>.exr.js` into `assets/<name>.exr`.
+  - Available: apartment, bridge, city, dawn, esplanade, **forest**, hall, lab, lobby, night, **park**, **sky**, studio, sunrise, sunset, venice, warehouse, workshop.
+- **Setup:**
+  - Load with `EXRLoader` (needs `libs/fflate.module.js`).
+  - Use `GroundedSkybox(hdr, height 2.2, radius 90)` so the photo becomes ground you can run on.
+  - Set `scene.environment = hdr` for image-based lighting, and rotate both together (`sky.rotation.y` and `scene.environmentRotation.y`) to face the sunlit side. For `forest`, that's 1.57.
+  - Add a `ShadowMaterial` plane so the character casts onto the photo, plus a warm key light and exposure of about 1.55.
+- **Why it works:** the HDRI's low resolution plus the Kuwahara smear produces exactly the reference's soft, unclear, photo-ish mush.
+- **Limits:**
+  - The projected ground stretches if the camera travels far (more than about 10m). Keep moves short, or let the smear hide it.
+  - The HDRI is a single location, so you can't travel through it; it's one place per shot.

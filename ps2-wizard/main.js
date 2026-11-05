@@ -2,6 +2,8 @@
 // Pipeline: render the 3D scene small (360×640, no AA) → Kuwahara oil-paint smear → soft upscale to 1080×1920 with a little posterize.
 // Motion is stepped at 12.5 fps (like the 12 fps references) inside a 25 fps video.
 import * as THREE from 'three';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { GroundedSkybox } from 'three/addons/objects/GroundedSkybox.js';
 
 const W = 1080, H = 1920, LW = 360, LH = 640, STEP = 1 / 12.5;
 const V3 = THREE.Vector3;
@@ -10,7 +12,7 @@ function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Ma
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.55;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 function canvasTex(w, h, draw, rep = 1) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); return t; }
@@ -43,28 +45,21 @@ const skyTex = canvasTex(360, 640, (g, w, h) => {
 skyTex.repeat.set(1, 1);
 
 const scene = new THREE.Scene(); scene.background = skyTex; scene.fog = new THREE.Fog('#c9d6c0', 9, 46);
-scene.add(new THREE.HemisphereLight('#f0f4ff', '#94a070', 2.4));
-const sun = new THREE.DirectionalLight('#fff0d0', 3.2); sun.position.set(-6, 12, -10); scene.add(sun, sun.target); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4; Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
+scene.add(new THREE.HemisphereLight('#f0f4ff', '#94a070', .5));
+const sun = new THREE.DirectionalLight('#fff0d0', 2.6); sun.position.set(-6, 12, -10); scene.add(sun, sun.target); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4; Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
 const MS = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .9, ...o });
 const mesh = (geo, mat, par = scene) => { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; par.add(m); return m; };
 
-// ---------------------------------------------------------------- forest along a path running toward +z
-{ const g = mesh(new THREE.PlaneGeometry(200, 200), MS('#ffffff', { map: grassTex })); g.rotation.x = -Math.PI / 2;
-  const p = mesh(new THREE.PlaneGeometry(3.2, 200), MS('#ffffff', { map: pathTex })); p.rotation.x = -Math.PI / 2; p.position.y = .01; p.material.map = pathTex.clone(); p.material.map.repeat.set(1, 60); p.material.map.needsUpdate = true;
-  const R = mulberry(11), bark = MS('#ffffff', { map: barkTex }), leaf = MS('#ffffff', { map: leafTex });
-  for (let i = 0; i < 90; i++) {
-    const side = R() > .5 ? 1 : -1, x = side * (2.6 + R() * 14), z = -30 + R() * 90, h = 5 + R() * 7, r = .18 + R() * .25;
-    const tr = mesh(new THREE.CylinderGeometry(r * .7, r, h, 7), bark); tr.position.set(x, h / 2, z);
-    for (let k = 0; k < 3; k++) { const b = mesh(new THREE.IcosahedronGeometry(1.3 + R() * 1.2, 1), leaf); b.castShadow = false; b.position.set(x + (R() - .5) * 1.6, h - .6 + R() * 1.6, z + (R() - .5) * 1.6); b.scale.y = .8; }
-  }
-  for (let i = 0; i < 70; i++) { const side = R() > .5 ? 1 : -1, b = mesh(new THREE.IcosahedronGeometry(.4 + R() * .5, 1), leaf); b.position.set(side * (1.9 + R() * 6), .25, -30 + R() * 90); b.scale.y = .6; }
-  for (let i = 0; i < 40; i++) { const f = mesh(new THREE.ConeGeometry(.05, .5, 4), MS(R() > .5 ? '#e8e0f0' : '#f2d36a')); f.position.set((R() > .5 ? 1 : -1) * (1.7 + R() * 3), .25, -30 + R() * 90); }
-}
+// ---------------------------------------------------------------- photo-real environment: CC0 forest HDRI, projected onto the ground
+const hdr = await new EXRLoader().loadAsync('assets/forest.exr'); hdr.mapping = THREE.EquirectangularReflectionMapping;
+scene.environment = hdr; scene.environmentIntensity = 1.1; scene.background = null; scene.fog = null;
+const ROT = +(new URLSearchParams(location.search).get('rot') ?? 1.57);
+const sky = new GroundedSkybox(hdr, 2.2, 90); sky.position.y = 2.2 - .01; sky.rotation.y = ROT; scene.add(sky); scene.environmentRotation.y = ROT;
+{ const sh = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ color: '#1a1408', opacity: .42 })); sh.rotation.x = -Math.PI / 2; sh.position.y = .005; sh.receiveShadow = true; scene.add(sh); }
 const glareTex = canvasTex(256, 256, (g) => { const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, 'rgba(255,255,250,1)'); gr.addColorStop(.12, 'rgba(255,250,235,1)'); gr.addColorStop(.3, 'rgba(255,225,190,.45)'); gr.addColorStop(1, 'rgba(255,210,170,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); });
-const glare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glare.scale.set(70, 70, 1); scene.add(glare);
+const glare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glare.scale.set(70, 70, 1); glare.material.opacity = .35; scene.add(glare);
 // light shafts and floating pollen (the dreamy drift)
-const shafts = []; { const m = new THREE.MeshBasicMaterial({ color: '#fff6d8', transparent: true, opacity: .1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
-  for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 16), m); s.position.set(-7 + i * 2.2, 7, -16 + i * 2.5); s.rotation.set(0, .5, .45); scene.add(s); shafts.push(s); } }
+const shafts = [];
 const pollen = (() => { const R = mulberry(21), n = 500, pos = new Float32Array(n * 3), seed = []; for (let i = 0; i < n; i++) seed.push([R() * 20 - 10, R() * 6, -3 - R() * 30, R()]);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const dot = canvasTex(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.5, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
@@ -72,7 +67,7 @@ const pollen = (() => { const R = mulberry(21), n = 500, pos = new Float32Array(
 
 // ---------------------------------------------------------------- the wizard (matched to the reference): smooth flowing coat, olive trim, plum cowl,
 // faceted mannequin head with a warm sunlit patch, huge sagging brim + tall bent cone, puffy white gloves with fur cuffs, baggy trousers, boots, staff, pack
-const coatM = MS('#9a7082'), tunicM = MS('#6c3f6c'), cowlM = MS('#8a4f86'), trimM = MS('#7c6c4a'), pantsM = MS('#5c4058'), bootM = MS('#463a32'), gloveM = MS('#f0eee8'), furM = MS('#e6e2da'), hatM = MS('#6e4a5e'), packM = MS('#5e5a3a');
+const coatM = MS('#8c7480'), tunicM = MS('#624868'), cowlM = MS('#7e5276'), trimM = MS('#7c6c4a'), pantsM = MS('#584654'), bootM = MS('#463a32'), gloveM = MS('#f0eee8'), furM = MS('#e6e2da'), hatM = MS('#6e5262', { emissive: '#2a1e24', emissiveIntensity: .8 }), packM = MS('#5e5a3a');
 const wiz = new THREE.Group(); scene.add(wiz);
 const hips = new THREE.Group(); hips.position.y = .98; wiz.add(hips);
 const torso = new THREE.Group(); hips.add(torso);
@@ -159,7 +154,7 @@ const outM = new THREE.ShaderMaterial({ uniforms: { src: { value: rtPaint.textur
     vec2 p = vUv * res, f = fract(p); vec2 snap = (floor(p) + .5 + (f - .5) * .55) / res;     // part-way to nearest: soft but stair-stepped edges
     vec3 c = texture2D(src, snap).rgb;
     c = floor(c * 26. + .5) / 26.;                                                         // light posterize
-    float l = dot(c, vec3(.299, .587, .114)); c = mix(vec3(l), c, 1.12); c = (c - .5) * 1.06 + .5;
+    float l = dot(c, vec3(.299, .587, .114)); c = mix(vec3(l), c, 1.0); c = (c - .5) * 1.06 + .5;
     vec2 d = vUv - .5; c *= 1. - dot(d, d) * .35;
     gl_FragColor = vec4(clamp(c, 0., 1.), 1.);
   }` });
@@ -172,7 +167,7 @@ window.render = t => {
   poseWizard(tq);
   // handheld camera, backing up ahead of him, low and slightly below
   const z = -4 + tq * 2.7, hx = Math.sin(tq * 1.7) * .12 + Math.sin(tq * 4.1) * .04, hy = Math.sin(tq * 2.3) * .06;
-  cam.position.set(1.4 + hx, 1.15 + hy, z + 4.2 - tq * .12); cam.lookAt(wiz.position.x * .6, 1.45, z); cam.rotateZ(Math.sin(tq * 1.1) * .03);
+  cam.position.set(1.6 + hx, 1.25 + hy, z + 5.6 - tq * .15); cam.lookAt(wiz.position.x * .6, 1.45, z); cam.rotateZ(Math.sin(tq * 1.1) * .03);
   sun.position.set(5, 11, z + 12); sun.target.position.set(0, 0, z);
   const sp = pollen.pos; pollen.seed.forEach(([x, y, zz, r], i) => { sp[i * 3] = x + Math.sin(tq * .6 + r * 9) * .6; sp[i * 3 + 1] = (y + tq * (.15 + r * .2)) % 6; sp[i * 3 + 2] = zz + z; }); pollen.p.geometry.attributes.position.needsUpdate = true;
   glare.position.set(cam.position.x - 45, cam.position.y + 55, cam.position.z - 110);
