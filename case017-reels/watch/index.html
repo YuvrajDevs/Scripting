@@ -1,0 +1,246 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+</head><body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Case 017, Part 1 "The Watch": 25 s flat-cutouts reel (script: ../reels-case-017.md). 1080×1920, 30 fps, pure function of t.
+const W = 1080, H = 1920, cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
+const seg = (t, s, d) => clamp((t - s) / d), sm = t => t * t * (3 - 2 * t), io = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, oC = t => 1 - Math.pow(1 - t, 3);
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const LAMP = '201,166,107', NAVY = '#0f1a24', PAPER = '#f1e9d8';
+const STARS = (() => { const R = mulberry(4), a = []; for (let i = 0; i < 60; i++) a.push([R() * W, R() * 700, .6 + R() * 1.5, R() * 6]); return a; })();
+
+// ---------------------------------------------------------------- helpers
+function glow(x, y, r, col, a) { if (a <= 0) return; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(.35, `rgba(${col},${a * .45})`); g.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore(); }
+function tube(x1, y1, x2, y2, w, col) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+function poly(pts, col) { ctx.fillStyle = col; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); }
+function rect(x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); }
+function rrect(x, y, w, h, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+function vgrad(y0, y1, stops) { const g = ctx.createLinearGradient(0, y0, 0, y1); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; }
+function fill(style) { ctx.fillStyle = style; ctx.fillRect(-300, -300, W + 600, H + 600); }
+function mist(y, h, a, t, speed, seed) { const R = mulberry(seed); ctx.save(); ctx.filter = 'blur(26px)'; for (let i = 0; i < 7; i++) { const w = 380 + R() * 420, x = ((R() * (W + 800) + t * speed) % (W + 800)) - 400; ctx.fillStyle = `rgba(185,200,214,${a * (.6 + R() * .4)})`; ctx.beginPath(); ctx.ellipse(x, y + (R() - .5) * h, w, h * (.35 + R() * .3), 0, 0, 7); ctx.fill(); } ctx.restore(); }
+function vignette(a = .7) { const g = ctx.createRadialGradient(W / 2, H * .46, 360, W / 2, H * .5, 1250); g.addColorStop(0, 'rgba(3,5,9,0)'); g.addColorStop(1, `rgba(3,5,9,${a})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const b = ctx.createLinearGradient(0, H * .72, 0, H); b.addColorStop(0, 'rgba(3,4,8,0)'); b.addColorStop(1, 'rgba(3,4,8,.7)'); ctx.fillStyle = b; ctx.fillRect(0, H * .72, W, H * .28); }
+function push(cx, cy, k) { ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy); }
+function pine(x, y, h, col) { poly([[x, y - h], [x - h * .22, y - h * .45], [x - h * .12, y - h * .45], [x - h * .3, y], [x + h * .3, y], [x + h * .12, y - h * .45], [x + h * .22, y - h * .45]], col); }
+function panels(x, y, w, h, cw, ch, col) { ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); for (let i = x; i <= x + w; i += cw) { ctx.moveTo(i, y); ctx.lineTo(i, y + h); } for (let j = y; j <= y + h; j += ch) { ctx.moveTo(x, j); ctx.lineTo(x + w, j); } ctx.stroke(); }
+const ink = '#262a33', SKIN = '#b98a66';
+
+// ---------------------------------------------------------------- scenes
+function sHouse(t, still) {                  // Hollow Pines at night: house on stilts on a slope, one amber study window, mist
+  fill(vgrad(0, 1300, [[0, '#070d14'], [.55, NAVY], [1, '#1c2a39']]));
+  for (const [x, y, r, ph] of STARS) { ctx.fillStyle = `rgba(225,232,240,${.3 + .3 * Math.sin(t * 1.2 + ph)})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+  glow(810, 330, 230, '200,212,230', .2); ctx.fillStyle = '#e6e3d8'; ctx.beginPath(); ctx.arc(810, 330, 36, 0, 7); ctx.fill();
+  ctx.save(); if (!still) push(540, 980, 1 + .035 * io(seg(t, 0, 1.6)));
+  const R = mulberry(12); for (let i = 0; i < 18; i++) pine(-40 + i * 66 + R() * 20, 1060 + R() * 30, 180 + R() * 120, '#0c1620');
+  mist(1040, 90, .1, t, 14, 2);
+  poly([[-300, 1500], [-300, 1180], [200, 1120], [620, 1170], [1400, 1240], [1400, 1500]], '#0b131b');
+  for (let i = 0; i < 9; i++) pine(-60 + i * 150 + R() * 40, 1210 + R() * 40, 260 + R() * 160, '#09111a');
+  // the house
+  const hx = 300, hy = 830;
+  for (let i = 0; i < 7; i++) tube(hx + 20 + i * 78, hy + 260, hx + 20 + i * 78, 1180 + i * 6, 14, '#1d150f');
+  tube(hx - 10, hy + 330, hx + 500, hy + 330, 8, '#1d150f');
+  rect(hx - 20, hy + 240, 560, 22, '#2a1d15');
+  rect(hx, hy, 520, 250, '#33261c'); panels(hx, hy, 520, 250, 52, 62, '#2a1f17');
+  poly([[hx - 60, hy + 8], [hx + 260, hy - 200], [hx + 580, hy + 8]], '#22180f'); poly([[hx + 260, hy - 200], [hx + 580, hy + 8], [hx + 420, hy + 8]], '#1a120b');
+  for (const [x, lit] of [[hx + 50, 0], [hx + 210, 0], [hx + 370, 1]]) {
+    const fl = lit ? 1 : 0; rect(x, hy + 70, 100, 110, fl ? '#e5bd76' : '#121820'); rect(x + 47, hy + 70, 6, 110, fl ? '#b89058' : '#1b222b');
+    if (fl) { glow(x + 50, hy + 125, 220, LAMP, .45); glow(x + 50, hy + 125, 520, LAMP, .1); }
+  }
+  for (let i = 0; i < 12; i++) tube(hx + 540 + i * 0, 0, 0, 0, 0, 'transparent');
+  mist(1180, 120, .14, t, 22, 5); mist(1320, 140, .12, t, -16, 7);
+  ctx.restore();
+  vignette(.75);
+}
+function sChair(t, lamp = 1) {               // study at night, armchair from behind, silver head slumped right, glasses in the dangling hand
+  fill('#22170f');
+  rect(-100, 0, W + 200, 1330, '#2b1d15'); panels(-100, 120, W + 200, 1210, 135, 150, '#23170f');
+  rect(-100, 1330, W + 200, 700, '#1a110b'); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 3; for (let y = 1380; y < H; y += 70 + (y - 1330) * .15) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // lamp on the side table, flickers once
+  const fl = lamp * (1 - .7 * Math.exp(-Math.pow((t - 2.0) * 22, 2)) - .4 * Math.exp(-Math.pow((t - 2.09) * 30, 2)));
+  rect(850, 1060, 150, 18, '#3a2718'); tube(925, 1078, 925, 1330, 14, '#2e1f14'); tube(875, 1330, 975, 1330, 12, '#2e1f14');
+  tube(925, 1060, 925, 860, 8, '#2e1f14'); poly([[860, 870], [990, 870], [960, 780], [890, 780]], fl > .5 ? '#d9b77c' : '#8a7350');
+  glow(925, 860, 520, LAMP, .42 * fl); glow(925, 860, 1100, LAMP, .12 * fl);
+  ctx.save(); push(540, 1100, 1 + .02 * seg(t, 1.2, 1.6));
+  // chair back
+  poly([[260, 1360], [250, 900], [290, 760], [400, 690], [640, 690], [750, 760], [790, 900], [780, 1360]], '#3f2526');
+  ctx.strokeStyle = '#341d1e'; ctx.lineWidth = 4; for (let x = 330; x < 760; x += 70) { ctx.beginPath(); ctx.moveTo(x, 760); ctx.lineTo(x, 1340); ctx.stroke(); }
+  poly([[180, 1360], [200, 1000], [262, 980], [270, 1360]], '#331d1e'); poly([[770, 1360], [778, 980], [850, 1000], [860, 1360]], '#331d1e');
+  glow(800, 900, 260, LAMP, .08 * fl);
+  // head, slumped to the right over the chair's edge
+  ctx.save(); ctx.translate(690, 700); ctx.rotate(.5); ctx.fillStyle = '#c9ccd2'; ctx.beginPath(); ctx.ellipse(0, 0, 70, 62, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#b07f5d'; ctx.beginPath(); ctx.arc(58, 14, 12, 0, 7); ctx.fill(); ctx.restore();
+  // grey shawl over the left side
+  poly([[250, 860], [330, 720], [380, 740], [300, 1060], [190, 1080]], '#7c7f86'); ctx.strokeStyle = '#6a6d73'; ctx.lineWidth = 3; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.moveTo(195 + i * 16, 1076); ctx.lineTo(192 + i * 16, 1110); ctx.stroke(); }
+  // arm hanging over the right armrest, glasses loose in the fingers
+  tube(830, 990, 870, 1150, 34, '#7c7f86'); tube(870, 1150, 880, 1250, 26, SKIN); ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(882, 1262, 17, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(890, 1300); ctx.rotate(.3 + Math.sin(t * 1.3) * .02); ctx.fillStyle = 'rgba(214,226,236,.55)'; ctx.beginPath(); ctx.ellipse(-22, 0, 20, 15, 0, 0, 7); ctx.ellipse(22, 0, 20, 15, 0, 0, 7); ctx.fill(); tube(-3, -4, 3, -4, 3, 'rgba(214,226,236,.7)'); ctx.restore();
+  ctx.restore();
+  vignette(.8);
+}
+function sDoctor(t) {                        // morning grey: the doctor's silhouette in the open front door, black bag
+  fill('#56636e');
+  rect(-100, 0, W + 200, 1340, '#5b6873'); panels(-100, 140, W + 200, 1200, 150, 170, '#53606b');
+  rect(-100, 1340, W + 200, 700, '#434e58');
+  // the doorway, bright mist outside
+  rect(330, 420, 420, 920, '#3b2c22'); ctx.fillStyle = vgrad(440, 1340, [[0, '#dfe6ea'], [1, '#b6c3cc']]); ctx.fillRect(350, 440, 380, 900);
+  mist(900, 160, .25, t, 18, 3); mist(1220, 120, .2, t, -12, 9);
+  ctx.save(); ctx.globalAlpha = .28; poly([[350, 1340], [730, 1340], [930, 1900], [180, 1900]], '#d8e1e6'); ctx.restore();
+  // silhouette, faceless: coat, head, rimless glasses glint, bag in hand
+  const br = Math.sin(t * 2) * 2;
+  ctx.save(); ctx.translate(560, 1340); ctx.fillStyle = '#18202a';
+  poly([[-70, 0], [-58, -470 + br], [62, -470 + br], [80, 0]], '#18202a');
+  ctx.beginPath(); ctx.ellipse(0, -540 + br, 50, 58, 0, 0, 7); ctx.fill();
+  tube(-58, -440 + br, -96, -230, 34, '#18202a'); tube(60, -440 + br, 92, -240, 34, '#18202a');
+  poly([[60, -250], [136, -250], [148, -150], [48, -150]], '#0c0f13'); tube(78, -250, 118, -250, 6, '#0c0f13'); tube(80, -268, 116, -268, 6, '#0c0f13');
+  ctx.globalAlpha = .9; tube(-44, -548 + br, -20, -548 + br, 3, '#dce6ee'); tube(-12, -548 + br, 12, -548 + br, 3, '#dce6ee');
+  ctx.restore();
+  glow(540, 760, 700, '220,232,240', .12);
+  vignette(.65);
+}
+function sNote(t) {                          // the note: "cardiac", then "1.00 am" circled in ink
+  fill(vgrad(0, H, [[0, '#4b4f54'], [1, '#2c2f33']]));
+  const sl = oC(seg(t, 3.75, .5));
+  ctx.save(); ctx.translate(540 + (1 - sl) * 900, 1000); ctx.rotate(-.035);
+  ctx.save(); ctx.filter = 'blur(18px)'; rect(-330, -390, 680, 820, 'rgba(0,0,0,.35)'); ctx.restore();
+  rect(-340, -420, 680, 820, PAPER); ctx.strokeStyle = 'rgba(120,140,170,.25)'; ctx.lineWidth = 2; for (let y = -300; y < 380; y += 70) { ctx.beginPath(); ctx.moveTo(-300, y); ctx.lineTo(300, y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(190,80,80,.3)'; ctx.beginPath(); ctx.moveTo(-250, -420); ctx.lineTo(-250, 400); ctx.stroke();
+  ctx.font = 'italic 400 128px "Liberation Serif", serif'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = ink;
+  const write = (txt, x, y, s, d) => { const w = ctx.measureText(txt).width, p = seg(t, s, d); ctx.save(); ctx.beginPath(); ctx.rect(x - 10, y - 140, w * p + 10, 200); ctx.clip(); ctx.fillText(txt, x, y); ctx.restore(); return [x + w * p, y - 30, p]; };
+  let pen = write('cardiac', -200, -110, 3.95, .65);
+  if (t > 4.62) pen = write('1.00 am', -170, 150, 4.7, .5);
+  const cp = seg(t, 5.22, .42); if (cp > 0) { ctx.strokeStyle = ink; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.ellipse(10, 110, 250, 105, -.06, -2.6, -2.6 + cp * Math.PI * 2.15); ctx.stroke(); pen = [10 + 250 * Math.cos(-2.6 + cp * 6.75), 110 + 105 * Math.sin(-2.6 + cp * 6.75), 1]; }
+  ctx.restore();
+  // the pen follows the ink
+  if (t > 3.9 && t < 5.85) { const [px, py] = pen, bx = 540 + px * Math.cos(-.035) - py * Math.sin(-.035), by = 1000 + px * Math.sin(-.035) + py * Math.cos(-.035), wob = Math.sin(t * 40) * 6;
+    ctx.save(); ctx.translate(bx, by + wob); ctx.rotate(-.75); rect(0, -9, 300, 18, '#15171c'); rect(-26, -6, 30, 12, '#8a8f99'); poly([[-26, -6], [-46, 0], [-26, 6]], '#c9cdd4'); rect(210, -10, 18, 20, '#b89a5a'); ctx.restore(); }
+  vignette(.6);
+}
+// ECG-like trace: spiky while alive, flattening to a line
+function ecg(x, t, amp) { const u = (x / 70 + t * 2.4) % 1; let y = 0; if (u > .3 && u < .36) y = -Math.sin((u - .3) / .06 * Math.PI) * 1; if (u > .36 && u < .42) y = Math.sin((u - .36) / .06 * Math.PI) * .45; if (u > .55 && u < .7) y = -Math.sin((u - .55) / .15 * Math.PI) * .2; return y * amp; }
+function sWatch(t) {                         // the wrist, the shawl edge, the watch: wakes, 21:44, SOS, a second hand, "Cancelled", 21:48, flatline
+  fill('#06080c'); glow(540, 980, 900, '40,60,80', .25);
+  // forearm across the frame, shawl over it, hand beyond the watch
+  tube(-80, 1010, 560, 985, 150, SKIN); tube(560, 985, 820, 1000, 128, SKIN);
+  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(880, 1012, 110, 72, .06, 0, 7); ctx.fill();
+  for (let i = 0; i < 4; i++) tube(940, 980 + i * 22, 1030, 990 + i * 26, 30, i % 2 ? '#ad7e5b' : SKIN);
+  poly([[-120, 880], [250, 870], [300, 1140], [-120, 1160]], '#7c7f86'); ctx.strokeStyle = '#6b6e75'; ctx.lineWidth = 4; for (let i = 0; i < 12; i++) { ctx.beginPath(); ctx.moveTo(250 + i * 4, 880 + i * 22); ctx.lineTo(292 + i * 4, 885 + i * 22); ctx.stroke(); }
+  rect(450, 760, 180, 450, '#15171b');                                                   // strap
+  rrect(385, 810, 310, 350, 78, '#2b2e34'); rrect(410, 835, 260, 300, 60, '#08090b');   // case and screen
+  tube(700, 920, 700, 980, 16, '#3a3e45');
+  const wake = sm(seg(t, 6.9, 1.0)); glow(540, 985, 380, '150,205,195', .25 * wake);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(410, 835, 260, 300, 60); ctx.clip();
+  if (wake > 0) { ctx.fillStyle = `rgba(20,40,40,${.6 * wake})`; ctx.fillRect(410, 835, 260, 300); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const big = (s, y, col = '#f2f4f2', size = 86) => { ctx.font = `600 ${size}px Poppins`; ctx.fillStyle = col; ctx.fillText(s, 540, y); };
+  const trace = (amp, col) => { ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.beginPath(); for (let x = 0; x <= 220; x += 3) { const y = 1060 + ecg(x, t, amp); x ? ctx.lineTo(430 + x, y) : ctx.moveTo(430 + x, y); } ctx.stroke(); };
+  if (t < 8.2 && wake > 0) { ctx.strokeStyle = `rgba(200,235,225,${.8 * wake})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(540, 985, 60, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * wake); ctx.stroke(); }
+  else if (t >= 8.2 && t < 10.15) { big('21:44', 950); trace(70 * (1 + .6 * Math.sin(t * 9)), '#d8efe6'); }
+  else if (t >= 10.15 && t < 11.95) { big('SOS', 935, '#ffffff', 96); ctx.font = '600 36px Poppins'; ctx.fillStyle = '#d9dee0'; ctx.fillText('in 60 s', 540, 1015);
+    ctx.strokeStyle = '#e8eaea'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(540, 985, 112, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - seg(t, 10.15, 60))); ctx.stroke(); }
+  else if (t >= 11.95 && t < 13.1) { const f = 1 - seg(t, 11.95, .3); if (f > 0) { ctx.fillStyle = `rgba(255,255,255,${.7 * f})`; ctx.fillRect(410, 835, 260, 300); } ctx.font = '600 44px Poppins'; ctx.fillStyle = '#f2f4f2'; ctx.fillText('Cancelled', 540, 985); }
+  else if (t >= 13.1) { big('21:48', 950); trace(70 * (1 - sm(seg(t, 13.8, .6))), '#d8efe6'); }
+  ctx.restore();
+  // the second hand: dark sleeve, gloved, unreadable; hovers, taps "I'm OK", withdraws
+  const inn = io(seg(t, 10.9, .8)) * (1 - io(seg(t, 12.7, .7))), tap = Math.exp(-Math.pow((t - 12.0) * 9, 2));
+  if (inn > 0) { const hov = Math.sin(t * 3) * 8 * (1 - tap), fx = lerp(1300, 610, inn), fy = lerp(150, 885, inn) + hov + tap * 40;
+    tube(fx + 560, fy - 640, fx + 120, fy - 140, 120, '#181b21'); ctx.fillStyle = '#21252c'; ctx.beginPath(); ctx.ellipse(fx + 70, fy - 70, 80, 66, -.7, 0, 7); ctx.fill();
+    tube(fx + 40, fy - 40, fx, fy, 28, '#21252c'); tube(fx + 110, fy - 20, fx + 90, fy + 30, 26, '#1d2127'); }
+  vignette(.55);
+}
+function sTable(t) {                         // floor level, lamp light: the side table tips, the tumbler rolls. No body.
+  fill('#1c130c'); rect(-100, 0, W + 200, 1250, '#2a1c14'); panels(-100, 100, W + 200, 1150, 160, 180, '#22170f');
+  rect(-100, 1250, W + 200, 800, '#1f150e'); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 3; for (let y = 1290; y < H; y += 60 + (y - 1250) * .2) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  glow(120, 700, 900, LAMP, .2);
+  const tip = oC(seg(t, 8.95, .45)), bounce = Math.exp(-Math.pow((t - 9.42) * 14, 2)) * .06;
+  ctx.save(); ctx.translate(420, 1300); ctx.rotate(-tip * 1.32 + bounce);
+  rect(-20, -330, 40, 330, '#3d2a1b'); rect(-110, -12, 220, 18, '#33231a'); rrect(-170, -360, 340, 30, 8, '#4a3322'); ctx.restore();
+  // tumbler: slides off as the table tips, lands and rolls right
+  const fall = seg(t, 9.15, .3), roll = seg(t, 9.45, .9), rx = 300 + roll * 380 - roll * roll * 120, rot = roll * 9 - roll * roll * 3;
+  ctx.save(); if (t < 9.45) { const a = -tip * 1.32; ctx.translate(420 + Math.sin(-a) * -340 * 0 - 340 * Math.sin(-a) * .2 - fall * 120, 1300 - Math.cos(a) * 380 + fall * 380); ctx.rotate(a * .6); }
+  else { ctx.translate(rx, 1340); ctx.rotate(Math.PI / 2 + rot); }
+  poly([[-36, -50], [36, -50], [30, 50], [-30, 50]], 'rgba(205,225,235,.55)'); poly([[-32, 0], [32, 0], [30, 50], [-30, 50]], 'rgba(201,166,107,.65)'); tube(-30, -46, 30, -46, 3, 'rgba(255,255,255,.6)');
+  ctx.restore();
+  const pd = sm(seg(t, 9.5, .7)); if (pd > 0) { ctx.fillStyle = `rgba(110,72,34,${.55 * pd})`; ctx.beginPath(); ctx.ellipse(260, 1352, 130 * pd, 16 * pd, 0, 0, 7); ctx.fill(); }
+  vignette(.8);
+}
+function sRoom(t) {                          // pull back: the chair is still, the radio glows; slow push to the dark doorway
+  fill('#170f0a'); const k = 1 + .09 * io(seg(t, 16.0, 1.6));
+  ctx.save(); push(250, 960, k);
+  rect(-200, 0, W + 400, 1330, '#24180f'); panels(-200, 140, W + 400, 1190, 140, 160, '#1d130c');
+  rect(-200, 1330, W + 400, 800, '#160e09');
+  rect(110, 560, 290, 770, '#2c1e14'); rect(130, 580, 250, 750, '#040507');            // dark doorway
+  rect(700, 760, 300, 18, '#3a2718'); rrect(760, 650, 190, 110, 16, '#6b4630');        // shelf and radio
+  ctx.fillStyle = '#4e3322'; ctx.beginPath(); ctx.arc(805, 705, 34, 0, 7); ctx.fill(); ctx.strokeStyle = '#3f281a'; ctx.lineWidth = 3; for (let r = 8; r < 34; r += 8) { ctx.beginPath(); ctx.arc(805, 705, r, 0, 7); ctx.stroke(); }
+  const dial = .85 + .15 * Math.sin(t * 3); rect(860, 680, 70, 34, '#e7c17a'); glow(895, 697, 260, LAMP, .5 * dial); glow(895, 697, 700, LAMP, .1 * dial);
+  ctx.save(); ctx.translate(560, 1340); ctx.scale(.62, .62); ctx.translate(-520, -1360);
+  poly([[260, 1360], [250, 900], [290, 760], [400, 690], [640, 690], [750, 760], [790, 900], [780, 1360]], '#33201f');
+  ctx.save(); ctx.translate(690, 700); ctx.rotate(.5); ctx.fillStyle = '#a9acb2'; ctx.beginPath(); ctx.ellipse(0, 0, 70, 62, 0, 0, 7); ctx.fill(); ctx.restore();
+  poly([[180, 1360], [200, 1000], [262, 980], [270, 1360]], '#2a1918'); poly([[770, 1360], [778, 980], [850, 1000], [860, 1360]], '#2a1918'); ctx.restore();
+  ctx.restore();
+  vignette(.85);
+}
+function sShadow(t) {                        // a long shadow falls across the rug, withdraws; the door closes softly
+  fill('#130d09'); rect(-100, 0, W + 200, 1080, '#22170f'); panels(-100, 80, W + 200, 1000, 150, 170, '#1b120c');
+  rect(-100, 1080, W + 200, 900, '#181009');
+  const close = io(seg(t, 19.0, .65)), dx = 390, dw = 300;
+  rect(dx - 24, 380, dw + 48, 700, '#2c1e14'); rect(dx, 400, dw, 680, '#3b4a5a'); glow(dx + dw / 2, 900, 380, '90,115,140', .25 * (1 - close));
+  // rug in perspective
+  poly([[240, 1180], [840, 1180], [1060, 1800], [20, 1800]], '#5a1f1f'); poly([[275, 1205], [805, 1205], [1005, 1765], [75, 1765]], '#6e2a24');
+  poly([[540, 1260], [700, 1480], [540, 1700], [380, 1480]], '#4a1818'); poly([[540, 1330], [640, 1480], [540, 1630], [440, 1480]], '#6e2a24');
+  // the shadow: a figure's silhouette stretched along the floor from the door
+  const grow = io(seg(t, 17.6, .8)) * (1 - io(seg(t, 18.6, .6))), sw = Math.sin(t * 1.5) * .02;
+  if (grow > 0) { ctx.save(); ctx.translate(dx + dw / 2, 1080); ctx.transform(1, 0, -.12 + sw, 1, 0, 0); ctx.scale(1.05, 1.35 * grow); ctx.globalAlpha = .82; ctx.filter = 'blur(4px)'; ctx.fillStyle = '#050608';
+    ctx.beginPath(); ctx.moveTo(-70, 0); ctx.lineTo(70, 0); ctx.lineTo(95, 330); ctx.lineTo(60, 360); ctx.lineTo(40, 470); ctx.ellipse(0, 520, 58, 60, 0, -.3, Math.PI + .3); ctx.lineTo(-60, 360); ctx.lineTo(-95, 330); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  // the door swings shut over the hall light
+  if (close > 0) rect(dx + dw * (1 - close), 400, dw * close, 680, '#2a1c13');
+  vignette(.85);
+}
+function sEnd(t) {                           // end card: Hollow Pines blurred, a manila folder with T.B.B
+  ctx.save(); ctx.filter = 'blur(10px)'; sHouse(t, true); ctx.restore(); fill('rgba(4,7,11,.35)');
+  const f = sm(seg(t, 20.1, .8)), s = .94 + .06 * oC(seg(t, 20.1, .9));
+  ctx.save(); ctx.globalAlpha = f; ctx.translate(540, 900); ctx.scale(s, s); ctx.rotate(-.025);
+  ctx.save(); ctx.filter = 'blur(20px)'; rect(-250, -150, 520, 360, 'rgba(0,0,0,.5)'); ctx.restore();
+  rrect(-260, -180, 160, 50, 10, '#b8925a'); rrect(-260, -160, 520, 340, 12, '#b8925a'); rrect(-260, -130, 520, 310, 10, '#cfac6e');
+  rect(-260, -130, 520, 6, 'rgba(255,255,255,.15)');
+  ctx.font = '700 72px "Liberation Serif", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#5a3f22'; ctx.letterSpacing = '14px'; ctx.fillText('T.B.B', 8, 30); ctx.letterSpacing = '0px';
+  ctx.restore();
+  const u = sm(seg(t, 23.4, .5)); if (u > 0) { ctx.save(); ctx.globalAlpha = u; ctx.font = '600 38px Poppins'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dcbc'; ctx.fillText('theblackwoodbureau.com', 540, 1430); ctx.restore(); }
+}
+
+// ---------------------------------------------------------------- timeline (one hard cut, at 6.0)
+const SC = [[0, 0, sHouse], [1.2, .33, sChair], [2.7, .33, sDoctor], [3.75, .3, sNote], [6.0, 0, sWatch], [8.85, .3, sTable], [10.15, .3, sWatch], [15.2, .33, t => { sRoom(t); }], [17.5, .33, sShadow], [19.8, .6, sEnd]];
+// captions: [start, end, text, y]; word starts spread across the chunk (retimed to the voice later)
+const CAP = [[.3, 1.2, 'A rich man'], [1.2, 2.6, 'dies in his armchair.'], [2.8, 3.8, 'His doctor says:'], [3.8, 4.6, 'heart attack,'], [4.6, 5.6, 'one a.m.'],
+  [6.0, 6.9, 'But his watch'], [6.9, 7.9, 'remembers.'], [8.2, 8.9, '9:44,'], [8.9, 9.9, 'a hard fall.'], [10.2, 10.9, '9:45,'], [10.9, 11.8, 'someone taps'], [11.8, 12.8, '"I\'m OK."'],
+  [13.1, 13.8, '9:48,'], [13.8, 14.8, 'no pulse.'], [15.3, 16.0, 'Dead men'], [16.0, 17.2, "don't tap screens."], [17.6, 18.4, 'So who was'], [18.4, 19.8, 'standing beside him?'],
+  [20.8, 22.0, "That's what we do here", 1300], [22.0, 23.4, 'at The Blackwood Bureau.', 1300]];
+function captions(t) {
+  for (const [s, e, txt, y = 370] of CAP) {
+    const a = Math.min(seg(t, s, .15), 1 - seg(t, e - .12, .12)); if (a <= 0) continue;
+    const words = txt.split(' '), span = (e - s) * .8;
+    ctx.save(); ctx.globalAlpha = a; ctx.font = '600 66px Poppins'; ctx.textBaseline = 'middle';
+    const gap = 18, ws = words.map(w => ctx.measureText(w).width), tot = ws.reduce((x, z) => x + z, 0) + gap * (ws.length - 1); let x = W / 2 - tot / 2;
+    const act = Math.min(words.length - 1, Math.floor((t - s) / (span / words.length)));
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 2;
+    words.forEach((w, i) => { ctx.fillStyle = i === act ? '#f2a65a' : '#ffffff'; ctx.fillText(w, x, y); x += ws[i] + gap; });
+    ctx.restore();
+  }
+}
+// light film grain (the script asks for it): a few pre-made noise tiles, one per frame
+const GRAIN = [0, 1, 2, 3].map(k => { const c = document.createElement('canvas'); c.width = 540; c.height = 960; const g = c.getContext('2d'), d = g.createImageData(540, 960), R = mulberry(100 + k);
+  for (let i = 0; i < d.data.length; i += 4) { const v = R() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } g.putImageData(d, 0, 0); return c; });
+function grain(t) { ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .07; ctx.drawImage(GRAIN[Math.floor(t * 30) % 4], 0, 0, W, H); ctx.restore(); }
+window.DUR = 25; window.TEXTS = () => [];
+window.render = t => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none'; ctx.letterSpacing = '0px'; ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < SC.length; i++) {
+    const [s, d, fn] = SC[i], next = SC[i + 1], end = next ? next[0] + next[1] : 99;
+    if (t < s || t >= end) continue;
+    ctx.save(); ctx.globalAlpha = d ? sm(seg(t, s, d)) : 1; fn(t); ctx.restore();
+  }
+  ctx.fillStyle = `rgba(0,0,0,${1 - sm(seg(t, 0, .35))})`; ctx.fillRect(0, 0, W, H);
+  grain(t); captions(t);
+};
+Promise.all(['600', '700'].map(w => new FontFace('Poppins', `url(fonts/poppins-latin-${w}-normal.woff2)`, { weight: w }).load().then(f => document.fonts.add(f)))).then(() => { window.render(0); window.READY = true; });
+</script></body></html>
