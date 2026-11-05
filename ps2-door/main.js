@@ -1,7 +1,7 @@
 // PS2 style, first person: a dim room, the door swings open, outside is a bright green hill with a winding path,
 // little white houses and a water tower (after the user's reference image). 10 s, 25 fps, smooth.
 import * as THREE from 'three';
-const W = 1080, H = 1920, LW = 540, LH = 960;
+const W = 1080, H = 1920, LW = 270, LH = 480;
 const V3 = THREE.Vector3;
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
 const seg = (t, s, d) => clamp((t - s) / d), io = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, sm = t => t * t * (3 - 2 * t);
@@ -13,12 +13,12 @@ renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // noise textures (fbm value noise ramps)
-const NZ = (() => { const R = mulberry(77), N = 256, gr = Array.from({ length: N * N }, () => R()); const vn = (x, y, px, py) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), at = (i, j) => gr[(((j % py) + py) % py) * N + (((i % px) + px) % px)]; return lerp(lerp(at(xi, yi), at(xi + 1, yi), u), lerp(at(xi, yi + 1), at(xi + 1, yi + 1), u), v); };
+const NZ = (() => { const R = mulberry(77), N = 1024, gr = Array.from({ length: N * N }, () => R()); const vn = (x, y, px, py) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), at = (i, j) => gr[(((j % py) + py) % py) * N + (((i % px) + px) % px)]; return lerp(lerp(at(xi, yi), at(xi + 1, yi), u), lerp(at(xi, yi + 1), at(xi + 1, yi + 1), u), v); };
   return (x, y, px, py) => { let a = 0, amp = .5, f = 1; for (let o = 0; o < 5; o++) { a += amp * vn(x * f, y * f, px * f, py * f); amp *= .5; f *= 2; } return a; }; })();
 function noiseTex(w, h, sx, sy, cols, rx = 1, ry = rx) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), im = g.createImageData(w, h), C = cols.map(k => new THREE.Color(k));
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const n = clamp((NZ(x / sx, y / sy, Math.round(w / sx), Math.round(h / sy)) - .2) / .6) * (C.length - 1), i0 = Math.min(C.length - 2, Math.floor(n)), k = C[i0].clone().lerp(C[i0 + 1], n - i0), i = (y * w + x) * 4; im.data[i] = k.r * 255; im.data[i + 1] = k.g * 255; im.data[i + 2] = k.b * 255; im.data[i + 3] = 255; }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; }
-const grassTex = noiseTex(256, 256, 16, 16, ['#c4d850', '#cede5c', '#d6e468', '#deea76', '#e6ee8a'], 140);
+const grassTex = noiseTex(512, 512, 8, 8, ['#c4d850', '#cede5c', '#d6e468', '#deea76', '#e6ee8a'], 140);
 const woodTex = noiseTex(64, 256, 3, 60, ['#3a2618', '#4e3420', '#64442a', '#77553a'], 1, 1);
 const floorTex = noiseTex(128, 128, 4, 30, ['#a88e72', '#b89c80', '#c6ab8e', '#d2b89c'], 4, 3);
 const wallTex = noiseTex(128, 128, 18, 18, ['#d8d2c6', '#e0dace', '#e8e2d6', '#f0eadf'], 3, 2);
@@ -92,7 +92,7 @@ const spill = new THREE.SpotLight('#fff3dc', 0, 14, .7, .6, 1.2); spill.position
 const motes = (() => { const R = mulberry(5), n = 260, pos = new Float32Array(n * 3), seed = []; for (let i = 0; i < n; i++) seed.push([R() * 1.6 - .8, R() * 2.2, R() * 3.6 + .2, R()]);
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
-  const m = new THREE.PointsMaterial({ color: '#fff4dc', map: new THREE.CanvasTexture(c), size: .025, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }); const p = new THREE.Points(g, m); p.frustumCulled = false; scene.add(p); return { p, m, seed, pos }; })();
+  const m = new THREE.PointsMaterial({ color: '#fff4dc', map: new THREE.CanvasTexture(c), size: .01, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }); const p = new THREE.Points(g, m); p.frustumCulled = false; scene.add(p); return { p, m, seed, pos }; })();
 const beam = (() => { const m = new THREE.MeshBasicMaterial({ color: '#fff2d6', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-.5, 2.1, 0, .5, 2.1, 0, .5, 0, 0, -.5, 0, 0, -.9, 0, 3.6, .9, 0, 3.6], 3)); g.setIndex([0, 1, 2, 0, 2, 3, 3, 2, 5, 3, 5, 4]); const b = new THREE.Mesh(g, m); scene.add(b); return b; })();
 
@@ -117,20 +117,18 @@ const kuwa = new THREE.ShaderMaterial({ uniforms: { src: { value: rtScene.textur
     if (v1 < best) { best = v1; col = m1; } if (v2 < best) { best = v2; col = m2; } if (v3 < best) { col = m3; }
     gl_FragColor = vec4(col, 1.);
   }` });
-const outM = new THREE.ShaderMaterial({ uniforms: { src: { value: rtPaint.texture }, res: { value: new THREE.Vector2(LW, LH) }, time: { value: 0 } }, vertexShader: vs, fragmentShader: `
+// console output: hard nearest-neighbour pixels, 4x4 ordered (Bayer) dither into 5-bit colour, soft glow on bright lights
+const outM = new THREE.ShaderMaterial({ uniforms: { src: { value: rtScene.texture }, res: { value: new THREE.Vector2(LW, LH) }, time: { value: 0 } }, vertexShader: vs, fragmentShader: `
   uniform sampler2D src; uniform vec2 res; uniform float time; varying vec2 vUv;
-  float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+  float bayer(vec2 p){ int x = int(mod(p.x, 4.)), y = int(mod(p.y, 4.)); int i = x + y * 4;
+    float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
+    float v = 0.; for (int k = 0; k < 16; k++) if (k == i) v = m[k]; return v / 16.; }
   void main(){
-    vec2 p = vUv * res, f = fract(p); vec2 snap = (floor(p) + .5 + (f - .5) * .7) / res;
-    vec3 c = texture2D(src, snap).rgb;
-    // soft bloom: wide average of the bright parts
-    vec3 b = vec3(0.); for (int i = 0; i < 12; i++) { float a = float(i) * .5236; for (int k = 1; k <= 2; k++) { vec3 s = texture2D(src, vUv + vec2(cos(a), sin(a)) * float(k) * 7. / res).rgb; b += max(s - .62, 0.); } } b /= 24.;
-    c += b * .9;
-    c = mix(c, vec3(.93, .96, 1.), .06);                         // dreamy haze, lifted blacks
-    c = c * .94 + .04;
-    float l = dot(c, vec3(.299, .587, .114)); c = mix(vec3(l), c, .96);
-    c += (hash(floor(p * 2.) + time) - .5) * .035;               // fine film grain
-    vec2 d = vUv - .5; c *= 1. - dot(d, d) * .22;
+    vec2 lp = floor(vUv * res), uv = (lp + .5) / res;
+    vec3 c = texture2D(src, uv).rgb;
+    vec3 b = vec3(0.); for (int i = 0; i < 12; i++) { float a = float(i) * .5236; for (int k = 1; k <= 2; k++) b += max(texture2D(src, uv + vec2(cos(a), sin(a)) * float(k) * 3. / res).rgb - .7, 0.); } c += b / 24. * .8;
+    float lv = 31.; c = floor(c * lv + bayer(lp)) / lv;
+    vec2 d = vUv - .5; c *= 1. - dot(d, d) * .3;
     gl_FragColor = vec4(clamp(c, 0., 1.), 1.);
   }` });
 const kQuad = new THREE.Mesh(quadGeo, kuwa), oQuad = new THREE.Mesh(quadGeo, outM), kScene = new THREE.Scene(), oScene = new THREE.Scene(); kScene.add(kQuad); oScene.add(oQuad);
@@ -150,7 +148,6 @@ window.render = t => {
   motes.m.opacity = .8 * open * (1 - seg(out, 0, .25)); motes.seed.forEach(([x, y, zz, r], i) => { motes.pos[i * 3] = x + Math.sin(t * .4 + r * 9) * .15; motes.pos[i * 3 + 1] = (y + t * (.04 + r * .05)) % 2.2; motes.pos[i * 3 + 2] = zz; }); motes.p.geometry.attributes.position.needsUpdate = true;
   renderer.toneMappingExposure = lerp(1.0, 1.2, out); outM.uniforms.time.value = Math.floor(t * 25) * 1.37;
   renderer.setRenderTarget(rtScene); renderer.render(scene, cam);
-  renderer.setRenderTarget(rtPaint); renderer.render(kScene, quadCam);
-  renderer.setRenderTarget(null); renderer.render(oScene, quadCam);
+    renderer.setRenderTarget(null); renderer.render(oScene, quadCam);
 };
 window.render(0); window.READY = true;

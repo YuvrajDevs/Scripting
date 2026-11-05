@@ -1,6 +1,22 @@
 # PS2 style
 
-When the user says **"create in PS2"** (or "PS2 style"), this is what they mean.
+When the user says **"create in PS2"**, this is what they mean. **Current target (latest references, supersedes the smear look below):**
+
+## Current look: crisp console render with dither (7-Eleven night street and rainy-window cat references)
+- **Crisp, readable detail:** sharp textures (signs, text, brick, wood grain, a payphone) and clear shapes. **No oil smear.**
+- **Low-res console pixels:**
+  - Render at **270×480** (a quarter of 1080×1920) with no antialiasing.
+  - Upscale with **hard nearest-neighbour pixels**, so edges stair-step but stay sharp.
+- **Ordered (Bayer 4×4) dithering into 5-bit colour (31 levels).** Gradients and shading show the classic PS1/PS2 dither pattern and slight banding.
+- **Light:** warm practical lights (shop fronts, lamps, windows) with a gentle glow (bright pass above .7, small radius, ×.8), plus a mild vignette.
+- **Motion:** smooth and continuous (30fps references). Slow, steady camera moves; characters animate every frame.
+- **Dreamcore variant** (the user's hill picture): pale azure sky gradient, yellow-lime grass, white houses with orange roofs, soft sun from the front-left, neutral tone mapping (`THREE.NeutralToneMapping`) so the colours stay true.
+- **Build:** `ps2-door/` (FPV: door opens onto the dreamcore hill, 10s). Its output shader is the reference implementation.
+- **Tileable noise textures:** use a periodic lattice (lattice size must be at least period × 2^octaves, so N = 1024) and `f *= 2` per octave, so repeats have no seams.
+
+---
+
+## Earlier look (first references: wizard and genie): smeared and unclear
 **References:** two Instagram reels by @gabrielbeniciobh (a wizard on a snowy peak, and a genie in a cave). Both are 720×1280 at **12fps**.
 **First build:** `ps2-wizard/` (5s, a wizard running funny through a forest). Start from it.
 
