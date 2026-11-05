@@ -10,7 +10,7 @@ function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Ma
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 
 function canvasTex(w, h, draw, rep = 1) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); return t; }
@@ -19,12 +19,27 @@ const grassTex = canvasTex(512, 512, blotch(['#4f7a32', '#3d6427', '#6a9440', '#
 const pathTex = canvasTex(512, 512, blotch(['#8a7350', '#7a6444', '#a08a62', '#6a5638', '#5f7a36'], 700, 4, 22, 5), 6);
 const barkTex = canvasTex(128, 512, (g, w, h) => { const R = mulberry(7); g.fillStyle = '#5a4430'; g.fillRect(0, 0, w, h); for (let i = 0; i < 80; i++) { g.fillStyle = R() > .5 ? '#3f2f22' : '#6e5640'; g.fillRect(R() * w, R() * h, 4 + R() * 10, 30 + R() * 90); } });
 const leafTex = canvasTex(256, 256, blotch(['#3f6a2c', '#2f5422', '#5a8a3a', '#78a84a', '#a6c46a'], 500, 4, 18, 9), 2);
-const skyTex = canvasTex(256, 512, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5f8fd0'); gr.addColorStop(.6, '#a9c7e6'); gr.addColorStop(1, '#e8eedc'); g.fillStyle = gr; g.fillRect(0, 0, w, h); const R = mulberry(2);
-  g.filter = 'blur(6px)'; for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(255,255,255,${.3 + R() * .5})`; g.beginPath(); g.ellipse(R() * w, R() * h * .6, 10 + R() * 30, 6 + R() * 14, 0, 0, 7); g.fill(); } });
+// photo-like sky: fbm value noise → cumulus with lit tops and blue-grey undersides
+const skyTex = canvasTex(360, 640, (g, w, h) => {
+  const R = mulberry(2), N = 64, grid = Array.from({ length: N * N }, () => R());
+  const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const at = (i, j) => grid[((j % N + N) % N) * N + ((i % N + N) % N)]; return lerp(lerp(at(xi, yi), at(xi + 1, yi), u), lerp(at(xi, yi + 1), at(xi + 1, yi + 1), u), v); };
+  const fbm = (x, y) => { let a = 0, amp = .5, f = 1; for (let o = 0; o < 5; o++) { a += amp * vn(x * f, y * f); amp *= .5; f *= 2.03; } return a; };
+  const img = g.createImageData(w, h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const k = y / h, sx = x / 70, sy = y / 45;
+    let r = lerp(58, 170, k), gg = lerp(110, 200, k), bb = lerp(205, 232, k);
+    const n = fbm(sx, sy) - k * .08, c = clamp((n - .4) / .14), lit = clamp((fbm(sx, sy - .25) - n) * 4 + .5);
+    const cr = lerp(150, 252, lit), cg = lerp(160, 252, lit), cb = lerp(190, 255, lit);
+    r = lerp(r, cr, c); gg = lerp(gg, cg, c); bb = lerp(bb, cb, c);
+    const i = (y * w + x) * 4; img.data[i] = r; img.data[i + 1] = gg; img.data[i + 2] = bb; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+});
 skyTex.repeat.set(1, 1);
 
 const scene = new THREE.Scene(); scene.background = skyTex; scene.fog = new THREE.Fog('#c9d6c0', 9, 46);
-scene.add(new THREE.HemisphereLight('#e4eeff', '#6a7a48', 1.5));
+scene.add(new THREE.HemisphereLight('#e4eeff', '#7a8a58', 1.9));
 const sun = new THREE.DirectionalLight('#fff0d0', 3.2); sun.position.set(-6, 12, -10); scene.add(sun, sun.target); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
 const MS = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .9, ...o });
 const mesh = (geo, mat, par = scene) => { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; par.add(m); return m; };
@@ -41,12 +56,15 @@ const mesh = (geo, mat, par = scene) => { const m = new THREE.Mesh(geo, mat); m.
   for (let i = 0; i < 70; i++) { const side = R() > .5 ? 1 : -1, b = mesh(new THREE.IcosahedronGeometry(.4 + R() * .5, 1), leaf); b.position.set(side * (1.9 + R() * 6), .25, -30 + R() * 90); b.scale.y = .6; }
   for (let i = 0; i < 40; i++) { const f = mesh(new THREE.ConeGeometry(.05, .5, 4), MS(R() > .5 ? '#e8e0f0' : '#f2d36a')); f.position.set((R() > .5 ? 1 : -1) * (1.7 + R() * 3), .25, -30 + R() * 90); }
 }
+const glareTex = canvasTex(256, 256, (g) => { const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, 'rgba(255,255,250,1)'); gr.addColorStop(.12, 'rgba(255,250,235,1)'); gr.addColorStop(.3, 'rgba(255,225,190,.45)'); gr.addColorStop(1, 'rgba(255,210,170,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); });
+const glare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glare.scale.set(70, 70, 1); scene.add(glare);
 // light shafts and floating pollen (the dreamy drift)
 const shafts = []; { const m = new THREE.MeshBasicMaterial({ color: '#fff6d8', transparent: true, opacity: .1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 16), m); s.position.set(-7 + i * 2.2, 7, -16 + i * 2.5); s.rotation.set(0, .5, .45); scene.add(s); shafts.push(s); } }
 const pollen = (() => { const R = mulberry(21), n = 500, pos = new Float32Array(n * 3), seed = []; for (let i = 0; i < n; i++) seed.push([R() * 20 - 10, R() * 6, -3 - R() * 30, R()]);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#ffffff', size: .04, transparent: true, opacity: .85, depthWrite: false })); scene.add(p); return { p, seed, pos }; })();
+  const dot = canvasTex(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.5, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#fffaf0', map: dot, size: .11, transparent: true, opacity: .9, depthWrite: false, fog: false })); p.frustumCulled = false; scene.add(p); return { p, seed, pos }; })();
 
 // ---------------------------------------------------------------- the wizard: smooth low-poly mannequin, faceless, big floppy hat
 const robe = MS('#ad7480'), plum = MS('#4b3349'), scarfM = MS('#8c3b7c'), face = MS('#d5d3d6', { roughness: .6 }), glove = MS('#f2f0ec'), strap = MS('#6c5c3c'), hatM = MS('#9a6472');
@@ -61,7 +79,7 @@ mesh(new THREE.BoxGeometry(.07, .8, .06), strap, torso).position.set(.12, .42, .
 const pack = mesh(new THREE.BoxGeometry(.5, .6, .3), MS('#6f6a42'), torso); pack.position.set(0, .45, -.32);
 const headG = new THREE.Group(); headG.position.y = .95; torso.add(headG);
 const hd = mesh(new THREE.SphereGeometry(.17, 12, 10), face, headG); hd.scale.set(.95, 1.15, 1); hd.position.y = .08;
-mesh(new THREE.BoxGeometry(.2, .12, .12), MS('#e0b64e', { roughness: .5 }), headG).position.set(0, .14, .1);   // the warm-lit upper face plane
+mesh(new THREE.BoxGeometry(.24, .12, .14), MS('#e8c262', { roughness: .45, emissive: '#6a4a10' }), headG).position.set(0, .15, .1);   // the warm-lit upper face plane
 const hat = new THREE.Group(); hat.position.y = .27; headG.add(hat);
 mesh(new THREE.CylinderGeometry(.62, .62, .03, 20), hatM, hat);
 const cone1 = new THREE.Group(); hat.add(cone1); mesh(new THREE.CylinderGeometry(.17, .27, .45, 14), hatM, cone1).position.y = .22;
@@ -101,13 +119,13 @@ const kuwa = new THREE.ShaderMaterial({ uniforms: { src: { value: rtScene.textur
   uniform sampler2D src; uniform vec2 px; varying vec2 vUv;
   void main(){
     vec3 m0 = vec3(0.), m1 = vec3(0.), m2 = vec3(0.), m3 = vec3(0.), q0 = vec3(0.), q1 = vec3(0.), q2 = vec3(0.), q3 = vec3(0.);
-    for (int j = 0; j <= 4; j++) for (int i = 0; i <= 4; i++) {
+    for (int j = 0; j <= 5; j++) for (int i = 0; i <= 5; i++) {
       vec3 a = texture2D(src, vUv + vec2(-float(i), -float(j)) * px).rgb; m0 += a; q0 += a * a;
       vec3 b = texture2D(src, vUv + vec2( float(i), -float(j)) * px).rgb; m1 += b; q1 += b * b;
       vec3 c = texture2D(src, vUv + vec2(-float(i),  float(j)) * px).rgb; m2 += c; q2 += c * c;
       vec3 d = texture2D(src, vUv + vec2( float(i),  float(j)) * px).rgb; m3 += d; q3 += d * d;
     }
-    float n = 25.; m0 /= n; m1 /= n; m2 /= n; m3 /= n;
+    float n = 36.; m0 /= n; m1 /= n; m2 /= n; m3 /= n;
     float v0 = dot(q0 / n - m0 * m0, vec3(1.)), v1 = dot(q1 / n - m1 * m1, vec3(1.)), v2 = dot(q2 / n - m2 * m2, vec3(1.)), v3 = dot(q3 / n - m3 * m3, vec3(1.));
     vec3 col = m0; float best = v0;
     if (v1 < best) { best = v1; col = m1; } if (v2 < best) { best = v2; col = m2; } if (v3 < best) { col = m3; }
@@ -135,6 +153,7 @@ window.render = t => {
   cam.position.set(1.4 + hx, 1.15 + hy, z + 4.2 - tq * .12); cam.lookAt(wiz.position.x * .6, 1.45, z); cam.rotateZ(Math.sin(tq * 1.1) * .03);
   sun.position.set(5, 11, z + 12); sun.target.position.set(0, 0, z);
   const sp = pollen.pos; pollen.seed.forEach(([x, y, zz, r], i) => { sp[i * 3] = x + Math.sin(tq * .6 + r * 9) * .6; sp[i * 3 + 1] = (y + tq * (.15 + r * .2)) % 6; sp[i * 3 + 2] = zz + z; }); pollen.p.geometry.attributes.position.needsUpdate = true;
+  glare.position.set(cam.position.x - 45, cam.position.y + 55, cam.position.z - 110);
   shafts.forEach((s, i) => s.material.opacity = .08 + .03 * Math.sin(tq * .8 + i));
   renderer.setRenderTarget(rtScene); renderer.render(scene, cam);
   renderer.setRenderTarget(rtPaint); renderer.render(kScene, quadCam);

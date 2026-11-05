@@ -37,8 +37,9 @@ When the user says **"create in PS2"** (or "PS2 style"), this is what they mean.
 - A sun behind the character turns him into a black silhouette. Keep the sun in front or to the side.
 - Particles that pass close to the camera become giant white squares. Spawn them at least 3m away.
 - Light-shaft planes near the lens look like white boxes. Keep them deep in the background.
-- **Still to push closer to the references:**
-  - More photo-like sky and cloud textures.
-  - A visible sun glare.
-  - Snow or pollen that's readable as soft dots.
-  - A stronger yellow upper-face plane on the mannequin.
+- **Second pass (done):**
+  - Photo-like sky from fbm value noise (cumulus with lit tops and blue-grey undersides).
+  - An additive sun-glare sprite in the sky.
+  - Soft round particles (`frustumCulled=false`, round texture, size .11).
+  - Kuwahara radius 5 (36 samples per quadrant).
+  - Brighter fill light (hemisphere 1.9, exposure 1.25) and a warm yellow upper-face plane.
