@@ -1,133 +1,91 @@
-# Low-Poly Cinematic: style reference
+# Low-Poly Illustration: the reference art style
 
-Use this when the user says **"create in low poly"** (or "low-poly style", "the dino style").
-The reference build is `dino-supermarket/`: copy its structure, helpers and settings, and don't start from scratch.
-The look was matched to the user's reference reel: Instagram AI-animation montages with low-poly faceted subjects, painted anime skies, a glowing night city and hard cuts.
+Use this when the user says **"create in low poly"**.
+This guide describes **the look of the user's reference reel**: an Instagram montage, 1280×960, about 18s, with 14 scenes cut roughly every 1.5–2s. It's the target to recreate. My first attempt at it (`dino-supermarket/`) is covered in the appendix as a starting toolkit, not as the definition of the style.
 
 ---
 
-## 1. Look in one line
-Flat-shaded faceted 3D shapes (every polygon face carries its own tone), set against bold painted anime cumulus skies, or glowing warm-gold night cities. The colours are saturated but clean, the motion is slow and cinematic, and there are hard cuts about every 2 seconds.
+## 1. What the style is
+**Faceted vector painting.** Each image is a cinematic digital illustration in which every surface is broken into **flat, angular polygon planes**, like a low-poly 3D model that has been **painted** rather than rendered.
+- The planes are mostly flat colour, but many carry a **very soft gradient inside the facet**, which is what keeps it from looking like raw untextured 3D.
+- Edges are **clean and sharp between facets**, with **no black outlines**. Forms are defined only by changes in value and hue from one facet to the next.
+- The overall finish is smooth, polished and slightly soft. It's like a premium editorial illustration or poster, not a video-game screenshot.
+- Detail is **simplified, not crude**:
+  - Faces keep their likeness through a handful of planes (brow, cheekbone, nose bridge, jaw).
+  - Hands and fabric folds are built from big angular shapes.
+  - Small things such as text on jerseys or flags stay crisp and readable.
 
-## 2. Format and timing
-- **Size:** 1280×960 (4:3, like the reference). For a reel use 1080×1920 with the same grammar.
-- **Frame rate:** **25fps** (the user asked for 25 for this style). Use `--fps 25` when rendering.
-- **Shot rhythm:** hard cuts, about 1.8–2.1s per shot. There are no transitions, fades or text.
-- **Shot grammar** (from the reference's first 5s):
-  1. **A still medium shot.** The subject barely moves, with micro-motion only (a blink, a thud, a shake).
-  2. **A dramatic low-angle hero shot.** The subject is huge and on a diagonal against the sky. Small things cross the sky with white trails. The camera drifts slowly and rolls slightly (about −0.13 rad).
-  3. **A wide establishing aerial at night.** It's a city with a river and glowing roads, with a slow push-in.
-- **What's left out:** the user doesn't want subtitles, watermarks or voiceover in the video.
+## 2. Colour and light
+- **Rich, saturated, cinematic palettes, with one dominant temperature per scene:**
+  - **Day sky:** deep cobalt blue (`#1a4aa8` to `#3c78d6`) with bright white clouds.
+  - **Golden hour:** orange-red sky (`#e8642c` to `#ffb050`), mountains in layered purple-brown silhouettes, and figures in olive-green shadow.
+  - **Night city:** navy-black (`#050a1c`), with **warm gold street grids** (`#ffb050` to `#ffd890`), small cyan and blue accents on skyscrapers, and red rooftop dots.
+  - **Autumn aerial:** a sea of orange and red trees (`#e0631f`, `#f2a03a`) with white and grey city blocks.
+  - **Festival night:** deep red and black, glowing red lanterns, gold fireworks, warm skin tones.
+  - **Indoor and portrait:** muted warm browns and wood, with a single strong colour accent (a red flag).
+- **Light is directional and theatrical.** One clear key light, warm against cool, with **strong value contrast between lit and shadow facets**. Rim light is used on subjects against the sky.
+- **Emissive things glow softly.** Jet exhaust, headlights, windows, lanterns and fireworks get a gentle bloom, and the glow itself is **faceted**. The jet afterburner, for example, is a fan of angular shards going from white-yellow to orange, pink and violet.
+- **Shadows** are shapes, not blur: dark faceted regions, often tinted blue or purple. Reflections (a polished desk, a river) are simplified mirrored facets.
 
-## 3. Materials and shading (the core of the look)
-- Everything uses `MeshStandardMaterial({ flatShading: true, roughness ≈ .75–.85, metalness 0 })`.
-  - Metal objects use `metalness .3–.55, roughness .4`.
-- **Organic shapes** (animals, characters) are built with the `loft()` helper.
-  - Each one is a run of oval cross-sections (7–10 sides) along a spine, with about 6% random vertex jitter.
-  - The result is crisp facets that read as low-poly, never smooth.
-- **Per-face colour** comes from `faceColored()`, where each triangle picks its tone from its normal:
-  - Faces pointing up get the dark **back** colour.
-  - Faces pointing sideways get the **mid** colour.
-  - Faces pointing down get the light **belly** colour.
-  - Each face also gets a random ±7% brightness variation, which gives the "painted facet" look.
-  - Optional stripes come from `sin(z)`.
-- **Large deforming sheets** (the dented gate) need **smooth shading** (`flatShading: false` with `computeVertexNormals`). Flat shading on tiny moving triangles gives blocky dark noise in SwiftShader.
-- **Hard objects** (buildings, crates, cans) are plain boxes, cylinders with 4–8 sides, and dodecahedrons.
-- **Signs and glass** use canvas textures drawn in code (bold DejaVu Sans, red on cream, posters reading SALE or FRESH). Set `emissiveIntensity` to about .1 by day and 1.6 at night.
+## 3. Composition and camera
+- **Cinematic framing** with strong diagonals, like movie stills:
+  - Low-angle hero shots (a jet seen from below against the sky; a player from behind, looking up at the hoop).
+  - Over-the-shoulder shots.
+  - Symmetrical portrait shots (a person at a desk with a flag and a painting behind).
+  - Sweeping aerial establishing shots (a river city at night, an autumn cityscape).
+  - Packed action shots (cars racing out of a track corner, a dragon dance with crowds).
+- **Depth:** a big foreground subject, a midground action layer and an atmospheric background, with haze and lighter values in the distance.
+- **Background detail** is dense but simplified: crowds and buildings become rows of small faceted blocks.
 
-### Palette that worked
-| Use | Colours |
-|---|---|
-| Dino back / mid / belly / stripe | `#263f36` `#47654a` `#c9b384` `#1b2d27` |
-| Eyes | `#ffb52e`, emissive `#ff9a1a` at about 2.2 (blooms a little) |
-| Mouth / tongue / teeth | `#6a1b26` `#a8424f` `#f1e9d2` |
-| Store facade / trim / green band | `#eadcc0` `#d2c09e` `#2e8a57` |
-| Steel | `#9aa6b4` |
-| Day sky gradient (top to bottom) | `#1847a6` `#2c69cc` `#6aa0e4` `#b6d2f2` |
-| Cloud shadow / mid / lit / highlight | `#a7bde4` `#d0def4` `#f7faff` `#ffffff` |
-| Night sky | `#040817` `#0b1533` `#1b2550` `#3a3456` |
-| Night roads / lights | fill `#35200f`–`#5c3418`, lines `#ffc070`, lamp dots `#ffe0a0` |
-| Windows | warm `#ffcf86` `#ffe3ab`, cool `#9fd6ff`, wall `#121828` |
-| Product colours | `#e94b3c` `#f2b134` `#2f9e64` `#3a7bd5` `#f5f0e6` `#c0397a` `#ff7f2a` |
+## 4. Motion (it's AI image-to-video)
+- **Each shot is one illustration given subtle life**, not a full animation:
+  - Slow camera push, drift or parallax.
+  - Small subject motion: eyes opening, a mouth moving, hands shifting, a ball rising, cars edging forward, fireworks blooming, lanterns swaying.
+  - Background elements cross slowly (jets with thin white contrails, drones, boats on the river).
+- The pace is calm and steady even in action scenes. Motion is smooth and continuous, with **no fast cuts inside a shot**.
+- **Editing:** hard cuts about every 1.5–2s, a montage of themed scenes. Sometimes a scene repeats with a small change (a player shooting from two angles, two framings of the cars).
+- **Audio and text in the original:** music, a few on-screen words (subtitle, Chinese characters drawn in fireworks), and a corner watermark. **Leave out the watermark**, and leave out text unless the user asks.
 
-## 4. Skies (painted on a 2D canvas, used as `scene.background`)
-- **Day:**
-  - A vertical blue gradient, with a few thin white streaks for high cloud.
-  - **Anime cumulus** come from `cloud()`. Circles are laid along a flat base, the middle ones bigger, with extra puffs on top.
-  - The cloud is filled in the shadow colour first. **Three lit layers** are then drawn as unions (one canvas per layer, offset up-left by 0.07, 0.15 and 0.2 of the radius), clipped to the cloud with `source-atop`.
-  - A soft blue gradient sits along the bottom of each cloud.
-  - **Don't** draw separate shading circles inside, because that makes "soap bubble" outlines.
-- **Drift:** set `texture.repeat ≈ .86` and animate `texture.offset` slowly, for a parallax feel when the camera moves.
-- **Night:** a navy gradient, a few faint stars and a dusky glow at the horizon. Add `FogExp2('#0e1634', .0009)`.
+## 5. Recognisable signature details
+- Faceted **fire and light trails**: exhaust, contrails and headlight beams as layered translucent shards.
+- **Clouds** are the one soft-edged element. They're big anime cumulus with crisp lit tops and blue-grey undersides, in contrast with everything else being angular.
+- City windows are a grid of tiny warm rectangles, with a few in cool blue.
+- Skin uses about 3–5 tones per face, with the planes placed like a portrait painter's block-in.
+- Fabric such as suits, jerseys and flags is big planes with one or two fold facets. Flags are bright red with gold stars and simple folds.
 
-## 5. Lighting
-- **Day:**
-  - Hemisphere light `#c3d9ff` / `#9a8a70` at 1.15, and a warm sun `#fff0d6` at 3.1 from the upper right-front.
-  - PCF soft shadows with a 2048 map. Set the shadow camera to about ±16 and `normalBias .03`.
-  - **Don't** let a deforming mesh receive its own shadow, because it causes acne.
-- **Night:**
-  - Hemisphere light `#3b4c86` / `#1a1008` at .45 and a faint blue moon light at .35.
-  - Use no more than 3 PointLights in total (warm streetlamp, red sign spill, warm gate spill), with intensities of about 400–2600 and decay 2.
-  - The city ground uses `MeshBasicMaterial`, so it's unlit and cheap.
-- **Tone mapping:** ACES Filmic, exposure about 1.0.
-
-## 6. Post-processing (EffectComposer, MSAA ×4, HalfFloat target)
-`RenderPass → UnrealBloom → grade ShaderPass → OutputPass`
-
-| Setting | Day | Night |
+## 6. Recreating it in code (decision guide)
+| Shot type | Best tool | Why |
 |---|---|---|
-| Bloom strength / threshold / radius | .22–.32 / .82–.9 / .4–.45 | .7 / .62 / .5 |
-| Saturation | 1.08–1.1 | 1.12 |
-| Vignette | .5–.55 | .6 |
-| Shadow lift (blue) | (0, .004, .012) | (0, .006, .02) |
+| Hard objects (vehicles, buildings, robots, furniture) | **Three.js, flat-shaded low-poly models** | Faceted planes come for free |
+| Creatures and animals | Three.js `loft()` bodies with per-face colour | Organic but still faceted |
+| Faces and close-up people | **Canvas2D painted polygons** (hand-placed facets with a soft gradient fill each) | 3D primitives look crude on faces; painted facets keep the likeness and polish |
+| Skies and clouds | Canvas2D painted backdrop | The style's clouds are painted, not modelled |
+| Aerial cities | Three.js (instanced or merged boxes with window textures) plus a painted glowing ground texture | Thousands of lights cheaply |
+| Fire, trails, beams | Translucent faceted shards (triangle fans with gradient colours, additive blending) | Matches the faceted exhaust |
 
-- **Bloom levels:** too much night bloom turns everything to yellow mush, and a bloom strength above 1 is too much.
-- **Bright light points:** use `MeshBasicMaterial` with `Color` values above 1 (for example `Color(5, .45, .4)` for red rooftop lights) so they bloom.
+**Rules for getting closer to the reference than my first try:**
+1. **Paint the facets, don't just shade them.** Give each face a slight gradient, either per-vertex colour (blend 2 tones across the triangle) or a soft light term. Plain flat faces look like a game; graded facets look like the illustration.
+2. **Push value contrast and colour temperature:** warm key, cool shadow facets, and a rim light on subjects against the sky.
+3. **Keep it clean.** No noise, grain or dust clutter, and no outlines.
+4. **Keep each shot to one illustration:** one subject and gentle motion. Avoid busy physics.
+5. **Keep detail simplified but readable:** jersey numbers, flags and signs crisp, everything else blocked in.
+6. **Format:** 4:3 at 1280×960, or 9:16 for reels. **25fps** (user preference). Hard cuts about every 1.5–2s.
 
-## 7. Motion language
-- **Everything is a pure function of `t`:** the page exposes `window.render(t)`, `window.DUR` and `window.READY`. Use the seeded `mulberry()` and never `Math.random`.
-- **Impacts:**
-  - A spring dent (`A·(1 − e^{−14τ}·cos 26τ)`), a ripple ring and camera shake (`Σ A·e^{−7τ}·sin 47τ`).
-  - Grit falls from above, and nearby props jolt.
-- **Debris:**
-  - Closed-form ballistics, `p0 + v·τ + ½gτ²`, with **slow motion** `τ = (t − tBreak)·0.55`.
-  - Pieces are bent steel planes, coloured product boxes, cans, glass shards (transparent, slightly emissive) and plaster chunks.
-  - Send them **up and away from the camera side**. Flying toward the lens hides the subject.
-- **Contrails:** camera-facing ribbon strips sampled along each path, white with alpha fading to zero. They're the sky-crossing jet trails in the reference.
-- **Dust:** soft radial sprites, **low and faint** (opacity about .16), because big ones wash out the frame.
-- **Creatures:**
-  - Hinged jaw (opens about 0.66 rad), head pitch up on a roar, and a small tremble (`sin(61t)·.015`).
-  - Arms flail a little, and the body bobs slightly.
-- **Hero camera:** aim it every frame at the subject's world position (`head.localToWorld`), placed low and to the side, so the subject stays big.
+---
 
-## 8. Night city recipe
-- **Ground:** a 4096² canvas covering 2000m.
-  - Orange glowing roads on a grid (60m pitch, 14m wide, with every third one a 22m avenue), plus two glowing curved Bézier expressways.
-  - A river band with streaky reflections and lit embankments, and pools of lamp light.
-- **Buildings:**
-  - Merged box geometry using 3 window textures (512², 16×16 windows), with `emissiveIntensity` about .85.
-  - UVs are scaled to metres so windows don't stretch, and roofs point at a dark texel.
-  - Most heights are low (`9 + r³·40`). Only about 9% are towers of 70–180m, and some get a stepped top section.
-- **Landmarks:** a cluster of tapered 4-sided towers with thin cyan edge lines and spires, and one TV tower with dim pink spheres.
-- **Lights:** red rooftop lights only on buildings over 60m. Cars are 520 instanced glowing boxes moving along the roads.
-- **Keep the subject visible:** cap building heights along the sight line from the camera to the subject, and leave an open plaza in front of it. Scale the subject up (×3–4) in aerial shots so it reads.
-
-## 9. Pipeline
-```bash
-# project = folder with index.html (importmap → ./vendor/three.module.js, r170) + main.js
-cp -r dino-supermarket/vendor <new>/          # three + postprocessing + BufferGeometryUtils
-cd /home/user/lemomo-ai/lemo-opuscar
-node core/render/still.mjs /home/user/Scripting/<new> 2.3 --size 1280x960 --out <scratch>   # test stills
-node core/render/video.mjs /home/user/Scripting/<new> --fps 25 --size 1280x960 --workers 4 --out /home/user/Scripting/<new>/<name>.mp4
-```
-- **Speed:** SwiftShader renders about 1–3s per frame, so 125 frames take about 1.5 min with 4 workers.
-- **Review:** make a contact sheet, with `ffmpeg -vf "fps=5,scale=320:-1,tile=5x5"` or PIL.
-- **Debug switches:** use query flags (for example `?nodust=1`) to hide layers while framing.
-
-## 10. Pitfalls already hit
-- **GLSL reserved words:** don't use names like `half`, `input` or `output` as variables.
-- **Dust and debris:** these are the main way a shot gets ruined. Keep them away from the lens and keep the subject unobstructed.
-- **Deforming meshes:** use smooth shading and no self-shadow.
-- **Aerial occlusion:** check that the subject is actually on screen. Project its position, or crop the still around where it should be.
-- **Night bloom:** keep it under control (strength .7, threshold .6).
-- **Large builds:** for 30s, keep models in their own files and one file per shot, and build in batches of 3–4 shots with a contact sheet after each.
+## Appendix: toolkit from my first attempt (`dino-supermarket/`)
+These are reusable parts, not the definition of the style.
+- **`loft()` and `faceColored()`:** faceted organic bodies with per-face tone by normal (back, mid and belly colours, ±7% random variation).
+- **`cloud()`:** painted anime cumulus. A shadow body plus 3 lit union layers offset up-left, clipped with `source-atop`. Don't add inner shading circles (they look like bubbles).
+- **Post-processing:** ACES tone mapping, then bloom (day .25 strength / .85 threshold; night .7 / .62), then a grade (saturation 1.1, slight blue shadow lift, vignette .5). MSAA ×4.
+- **Night city:** a 4096² painted ground with glowing roads, river and expressways; merged buildings with 3 window textures; red roof lights; instanced cars; building heights capped along the camera's sight line to keep the subject visible.
+- **Motion helpers:** spring dents, camera shake, slow-motion debris with white trail ribbons, a jaw and roar rig, and a camera that tracks the subject's head.
+- **Pipeline:**
+  - Copy `dino-supermarket/vendor/` (Three.js r170 plus post-processing).
+  - Render stills with `node core/render/still.mjs <dir> <t> --size 1280x960`, and video with `node core/render/video.mjs <dir> --fps 25 --size 1280x960 --workers 4`, both from `/home/user/lemomo-ai/lemo-opuscar`.
+- **Pitfalls:**
+  - Dust and debris near the lens hide the subject.
+  - Deforming sheets need smooth shading and no self-shadow.
+  - Night bloom above about 1 strength turns to yellow mush.
+  - Check that the subject in an aerial shot is actually on screen.
+  - Avoid GLSL reserved words such as `half`.
