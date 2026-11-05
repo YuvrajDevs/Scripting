@@ -43,3 +43,24 @@ When the user says **"create in PS2"** (or "PS2 style"), this is what they mean.
   - Soft round particles (`frustumCulled=false`, round texture, size .11).
   - Kuwahara radius 5 (36 samples per quadrant).
   - Brighter fill light (hemisphere 1.9, exposure 1.25) and a warm yellow upper-face plane.
+
+## Third pass: matching the reference character (approved direction)
+- **Motion is smooth, not stepped.** The references are 12fps, but the animation curves are fluid and mocap-like. Animate continuously at 25fps.
+- **Run cycle:**
+  - 1.55 strides per second; hip swing ±.95 rad; knee bend `max(0, sin(ph+.9))·1.6`.
+  - Torso counter-twist, a small body bob and a gentle side wobble.
+  - One loose flapping arm (funny), and the staff arm pumping stiffly.
+  - Hat sections follow a beat late (phase lag .5, .8, 1.3, 1.8).
+- **Character build (smooth lathes, few polygons):**
+  - Long coat in two lathes (torso, plus a flaring skirt to below the knee) in dusty mauve `#9a7082`.
+  - Thick olive trim tubes `#7c6c4a` down both front edges, a purple tunic strip `#6c3f6c`, and a fat plum cowl torus `#8a4f86`.
+  - Tapered sleeves, fur cuffs (white torus), puffy white glove spheres, baggy trousers `#5c4058` and capsule boots.
+  - Thick wooden staff with a knob, and a bulky pack.
+- **Head:**
+  - A **faceted** icosahedron (flat shaded) in grey-blue, with **warm `#e3b25a` facets** on the sun-facing front.
+  - A slight emissive glow so it reads under the brim.
+- **Hat:**
+  - A big **sagging circular brim** (edges droop −.16, with a soft wave).
+  - A tall cone in three smooth jointed lathe sections that bend back. It's tilted back so the face shows.
+  - The brim doesn't cast shadows (otherwise the face goes black).
+- **World textures:** fbm noise ramps (grass, path, bark, leaves) instead of blotches. They smear into a believable, photo-ish mush. Canopies don't cast shadows, so the character stays sunlit.

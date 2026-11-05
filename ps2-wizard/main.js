@@ -11,15 +11,19 @@ function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Ma
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1); renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 function canvasTex(w, h, draw, rep = 1) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); return t; }
 const blotch = (cols, n, rmin, rmax, seed) => (g, w, h) => { const R = mulberry(seed); g.fillStyle = cols[0]; g.fillRect(0, 0, w, h); for (let i = 0; i < n; i++) { g.fillStyle = cols[1 + Math.floor(R() * (cols.length - 1))]; g.globalAlpha = .35 + R() * .5; g.beginPath(); g.ellipse(R() * w, R() * h, rmin + R() * (rmax - rmin), rmin + R() * (rmax - rmin) * .6, R() * 3, 0, 7); g.fill(); } g.globalAlpha = 1; };
-const grassTex = canvasTex(512, 512, blotch(['#4f7a32', '#3d6427', '#6a9440', '#7fa64c', '#5a6b2c', '#8a8a4a'], 900, 4, 26, 3), 18);
-const pathTex = canvasTex(512, 512, blotch(['#8a7350', '#7a6444', '#a08a62', '#6a5638', '#5f7a36'], 700, 4, 22, 5), 6);
-const barkTex = canvasTex(128, 512, (g, w, h) => { const R = mulberry(7); g.fillStyle = '#5a4430'; g.fillRect(0, 0, w, h); for (let i = 0; i < 80; i++) { g.fillStyle = R() > .5 ? '#3f2f22' : '#6e5640'; g.fillRect(R() * w, R() * h, 4 + R() * 10, 30 + R() * 90); } });
-const leafTex = canvasTex(256, 256, blotch(['#3f6a2c', '#2f5422', '#5a8a3a', '#78a84a', '#a6c46a'], 500, 4, 18, 9), 2);
-// photo-like sky: fbm value noise → cumulus with lit tops and blue-grey undersides
+const NZ = (() => { const R = mulberry(77), N = 64, gr = Array.from({ length: N * N }, () => R()); const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), at = (i, j) => gr[((j % N + N) % N) * N + ((i % N + N) % N)]; return lerp(lerp(at(xi, yi), at(xi + 1, yi), u), lerp(at(xi, yi + 1), at(xi + 1, yi + 1), u), v); };
+  return (x, y) => { let a = 0, amp = .5, f = 1; for (let o = 0; o < 5; o++) { a += amp * vn(x * f, y * f); amp *= .5; f *= 2.07; } return a; }; })();
+const noiseTex = (w, h, sx, sy, cols, rep) => canvasTex(w, h, (g) => { const im = g.createImageData(w, h), C = cols.map(c => new THREE.Color(c));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const n = clamp((NZ(x / sx, y / sy) - .2) / .6) * (C.length - 1), i0 = Math.min(C.length - 2, Math.floor(n)), k = C[i0].clone().lerp(C[i0 + 1], n - i0), i = (y * w + x) * 4; im.data[i] = k.r * 255; im.data[i + 1] = k.g * 255; im.data[i + 2] = k.b * 255; im.data[i + 3] = 255; }
+  g.putImageData(im, 0, 0); }, rep);
+const grassTex = noiseTex(256, 256, 22, 22, ['#4f7030', '#6a8c3c', '#8aa84e', '#a8bc68', '#c8cc8c'], 22);
+const pathTex = noiseTex(256, 256, 18, 30, ['#7a6648', '#988260', '#b49e7a', '#cdbb96'], 8);
+const barkTex = noiseTex(64, 256, 6, 40, ['#2e231a', '#4a3a2a', '#6a5640', '#7c6a52'], 1);
+const leafTex = noiseTex(256, 256, 12, 12, ['#33582a', '#4f7a34', '#74a044', '#9cc062', '#c6d88e'], 2);
 const skyTex = canvasTex(360, 640, (g, w, h) => {
   const R = mulberry(2), N = 64, grid = Array.from({ length: N * N }, () => R());
   const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
@@ -39,19 +43,19 @@ const skyTex = canvasTex(360, 640, (g, w, h) => {
 skyTex.repeat.set(1, 1);
 
 const scene = new THREE.Scene(); scene.background = skyTex; scene.fog = new THREE.Fog('#c9d6c0', 9, 46);
-scene.add(new THREE.HemisphereLight('#e4eeff', '#7a8a58', 1.9));
-const sun = new THREE.DirectionalLight('#fff0d0', 3.2); sun.position.set(-6, 12, -10); scene.add(sun, sun.target); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
+scene.add(new THREE.HemisphereLight('#f0f4ff', '#94a070', 2.4));
+const sun = new THREE.DirectionalLight('#fff0d0', 3.2); sun.position.set(-6, 12, -10); scene.add(sun, sun.target); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4; Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
 const MS = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .9, ...o });
 const mesh = (geo, mat, par = scene) => { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; par.add(m); return m; };
 
 // ---------------------------------------------------------------- forest along a path running toward +z
 { const g = mesh(new THREE.PlaneGeometry(200, 200), MS('#ffffff', { map: grassTex })); g.rotation.x = -Math.PI / 2;
-  const p = mesh(new THREE.PlaneGeometry(3.2, 200), MS('#ffffff', { map: pathTex })); p.rotation.x = -Math.PI / 2; p.position.y = .01;
+  const p = mesh(new THREE.PlaneGeometry(3.2, 200), MS('#ffffff', { map: pathTex })); p.rotation.x = -Math.PI / 2; p.position.y = .01; p.material.map = pathTex.clone(); p.material.map.repeat.set(1, 60); p.material.map.needsUpdate = true;
   const R = mulberry(11), bark = MS('#ffffff', { map: barkTex }), leaf = MS('#ffffff', { map: leafTex });
   for (let i = 0; i < 90; i++) {
     const side = R() > .5 ? 1 : -1, x = side * (2.6 + R() * 14), z = -30 + R() * 90, h = 5 + R() * 7, r = .18 + R() * .25;
     const tr = mesh(new THREE.CylinderGeometry(r * .7, r, h, 7), bark); tr.position.set(x, h / 2, z);
-    for (let k = 0; k < 3; k++) { const b = mesh(new THREE.IcosahedronGeometry(1.3 + R() * 1.2, 1), leaf); b.position.set(x + (R() - .5) * 1.6, h - .6 + R() * 1.6, z + (R() - .5) * 1.6); b.scale.y = .8; }
+    for (let k = 0; k < 3; k++) { const b = mesh(new THREE.IcosahedronGeometry(1.3 + R() * 1.2, 1), leaf); b.castShadow = false; b.position.set(x + (R() - .5) * 1.6, h - .6 + R() * 1.6, z + (R() - .5) * 1.6); b.scale.y = .8; }
   }
   for (let i = 0; i < 70; i++) { const side = R() > .5 ? 1 : -1, b = mesh(new THREE.IcosahedronGeometry(.4 + R() * .5, 1), leaf); b.position.set(side * (1.9 + R() * 6), .25, -30 + R() * 90); b.scale.y = .6; }
   for (let i = 0; i < 40; i++) { const f = mesh(new THREE.ConeGeometry(.05, .5, 4), MS(R() > .5 ? '#e8e0f0' : '#f2d36a')); f.position.set((R() > .5 ? 1 : -1) * (1.7 + R() * 3), .25, -30 + R() * 90); }
@@ -66,48 +70,66 @@ const pollen = (() => { const R = mulberry(21), n = 500, pos = new Float32Array(
   const dot = canvasTex(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.5, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
   const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#fffaf0', map: dot, size: .11, transparent: true, opacity: .9, depthWrite: false, fog: false })); p.frustumCulled = false; scene.add(p); return { p, seed, pos }; })();
 
-// ---------------------------------------------------------------- the wizard: smooth low-poly mannequin, faceless, big floppy hat
-const robe = MS('#ad7480'), plum = MS('#4b3349'), scarfM = MS('#8c3b7c'), face = MS('#d5d3d6', { roughness: .6 }), glove = MS('#f2f0ec'), strap = MS('#6c5c3c'), hatM = MS('#9a6472');
+// ---------------------------------------------------------------- the wizard (matched to the reference): smooth flowing coat, olive trim, plum cowl,
+// faceted mannequin head with a warm sunlit patch, huge sagging brim + tall bent cone, puffy white gloves with fur cuffs, baggy trousers, boots, staff, pack
+const coatM = MS('#9a7082'), tunicM = MS('#6c3f6c'), cowlM = MS('#8a4f86'), trimM = MS('#7c6c4a'), pantsM = MS('#5c4058'), bootM = MS('#463a32'), gloveM = MS('#f0eee8'), furM = MS('#e6e2da'), hatM = MS('#6e4a5e'), packM = MS('#5e5a3a');
 const wiz = new THREE.Group(); scene.add(wiz);
-const hips = new THREE.Group(); hips.position.y = 1.0; wiz.add(hips);
+const hips = new THREE.Group(); hips.position.y = .98; wiz.add(hips);
 const torso = new THREE.Group(); hips.add(torso);
-mesh(new THREE.CapsuleGeometry(.24, .5, 4, 10), robe, torso).position.y = .4;
-const skirt = mesh(new THREE.CylinderGeometry(.27, .42, .55, 12, 1, true), robe, hips); skirt.position.y = -.12; skirt.material.side = THREE.DoubleSide;
-mesh(new THREE.TorusGeometry(.2, .07, 6, 14), scarfM, torso).position.set(0, .78, 0); torso.children.at(-1).rotation.x = Math.PI / 2;
-const sc = mesh(new THREE.BoxGeometry(.12, .45, .05), scarfM, torso); sc.position.set(.08, .55, .24); sc.rotation.z = .15;
-mesh(new THREE.BoxGeometry(.07, .8, .06), strap, torso).position.set(.12, .42, .23); torso.children.at(-1).rotation.z = .35;
-const pack = mesh(new THREE.BoxGeometry(.5, .6, .3), MS('#6f6a42'), torso); pack.position.set(0, .45, -.32);
-const headG = new THREE.Group(); headG.position.y = .95; torso.add(headG);
-const hd = mesh(new THREE.SphereGeometry(.17, 12, 10), face, headG); hd.scale.set(.95, 1.15, 1); hd.position.y = .08;
-mesh(new THREE.BoxGeometry(.24, .12, .14), MS('#e8c262', { roughness: .45, emissive: '#6a4a10' }), headG).position.set(0, .15, .1);   // the warm-lit upper face plane
-const hat = new THREE.Group(); hat.position.y = .27; headG.add(hat);
-mesh(new THREE.CylinderGeometry(.62, .62, .03, 20), hatM, hat);
-const cone1 = new THREE.Group(); hat.add(cone1); mesh(new THREE.CylinderGeometry(.17, .27, .45, 14), hatM, cone1).position.y = .22;
-const cone2 = new THREE.Group(); cone2.position.y = .44; cone1.add(cone2); mesh(new THREE.CylinderGeometry(.08, .17, .38, 12), hatM, cone2).position.y = .19;
-const cone3 = new THREE.Group(); cone3.position.y = .38; cone2.add(cone3); mesh(new THREE.ConeGeometry(.08, .32, 10), hatM, cone3).position.y = .16;
-function limb(par, x, y, len1, len2, r, matA, matB, end) {
-  const a = new THREE.Group(); a.position.set(x, y, 0); par.add(a); mesh(new THREE.CapsuleGeometry(r, len1, 3, 8), matA, a).position.y = -len1 / 2;
-  const b = new THREE.Group(); b.position.y = -len1; a.add(b); mesh(new THREE.CapsuleGeometry(r * .85, len2, 3, 8), matB, b).position.y = -len2 / 2;
-  const e = mesh(end, end.type === 'SphereGeometry' ? glove : MS('#3a2e28'), b); e.position.y = -len2 - .05; return [a, b, e];
-}
-const armL = limb(torso, .3, .78, .32, .3, .08, robe, robe, new THREE.SphereGeometry(.09, 8, 6)), armR = limb(torso, -.3, .78, .32, .3, .08, robe, robe, new THREE.SphereGeometry(.09, 8, 6));
-const legL = limb(hips, .13, -.05, .45, .45, .1, plum, plum, new THREE.BoxGeometry(.16, .1, .3)), legR = limb(hips, -.13, -.05, .45, .45, .1, plum, plum, new THREE.BoxGeometry(.16, .1, .3));
-legL[2].position.z = legR[2].position.z = .06;
-const staff = mesh(new THREE.CylinderGeometry(.03, .04, 1.6, 6), MS('#6a4a2c'), armR[1]); staff.position.set(0, -.3, .1); staff.rotation.x = 1.2;
+const lathe = (pts, seg = 22) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+// coat: one smooth lathe from shoulders to below the knee, slightly open at the front
+const coat = mesh(lathe([[.0, .74], [.2, .73], [.27, .66], [.29, .45], [.26, .22], [.27, .05]], 26), coatM, torso);
+const coatSkirt = mesh(lathe([[.27, .08], [.3, -.1], [.36, -.32], [.41, -.5], [.42, -.53]], 26), coatM, hips); coatSkirt.material.side = THREE.DoubleSide;
+const tun = mesh(new THREE.CylinderGeometry(.12, .15, .6, 10, 1, true, -.7, 1.4), tunicM, torso); tun.position.set(0, .4, .135);
+for (const s of [-1, 1]) {      // thick olive trim running down both front edges
+  const pts = [new V3(s * .1, .74, .19), new V3(s * .14, .5, .27), new V3(s * .12, .2, .25), new V3(s * .15, -.1, .28), new V3(s * .2, -.5, .38)];
+  const tr = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, .04, 6, false), trimM, torso); }
+const cowl = mesh(new THREE.TorusGeometry(.15, .085, 10, 20), cowlM, torso); cowl.rotation.x = Math.PI / 2; cowl.position.y = .78; cowl.scale.set(1, 1.2, 1.25);
+const pack = mesh(new THREE.BoxGeometry(.48, .58, .32, 3, 3, 3), packM, torso); pack.position.set(0, .45, -.36); { const p = pack.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const v = new V3(p.getX(i), p.getY(i), p.getZ(i)); const k = .8 + .2 * (1 - v.length() * 1.6); p.setXYZ(i, v.x * (1 + .1 * k), v.y, v.z * (1 + .2 * k)); } pack.geometry.computeVertexNormals(); }
+// head: faceted mannequin; facets facing the sun go warm
+const headG = new THREE.Group(); headG.position.y = .9; torso.add(headG);
+{ let g = new THREE.IcosahedronGeometry(.155, 1); g = g.toNonIndexed(); const p = g.attributes.position.array, col = [], a = new V3(), b = new V3(), c = new V3(), n = new V3();
+  for (let i = 0; i < p.length; i += 9) { a.fromArray(p, i); b.fromArray(p, i + 3); c.fromArray(p, i + 6); n.crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+    const warm = n.z > .35 && n.y > -.25 && n.y < .55, k = warm ? new THREE.Color('#e3b25a') : new THREE.Color('#b4b8c2').lerp(new THREE.Color('#8f96a6'), clamp(-n.y)); for (let j = 0; j < 3; j++) col.push(k.r, k.g, k.b); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.scale(.92, 1.2, .98);
+  const hd = mesh(g, MS('#ffffff', { vertexColors: true, flatShading: true, roughness: .75, emissive: '#5a5040', emissiveIntensity: .6 }), headG); hd.position.y = .1; }
+// hat: wide sagging brim + tall cone bending back, in three jointed sections for lag
+const hat = new THREE.Group(); hat.position.y = .25; headG.add(hat);
+{ const g = new THREE.CircleGeometry(.66, 28, 0, Math.PI * 2); g.rotateX(-Math.PI / 2); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const r = Math.hypot(p.getX(i), p.getZ(i)), a = Math.atan2(p.getZ(i), p.getX(i)); p.setY(i, -.16 * Math.pow(r / .66, 2) + .03 * Math.sin(a * 3)); } g.computeVertexNormals();
+  const brim = mesh(g, hatM, hat); brim.material.side = THREE.DoubleSide; brim.castShadow = false; }
+const cone1 = new THREE.Group(); hat.add(cone1); mesh(lathe([[.25, 0], [.235, .08], [.215, .17], [.19, .27], [.17, .35], [.15, .42]], 18), hatM, cone1);
+const cone2 = new THREE.Group(); cone2.position.y = .42; cone1.add(cone2); mesh(lathe([[.15, 0], [.135, .08], [.118, .16], [.1, .24], [.083, .31], [.07, .36]], 16), hatM, cone2);
+const cone3 = new THREE.Group(); cone3.position.y = .36; cone2.add(cone3); mesh(lathe([[.07, 0], [.058, .07], [.044, .14], [.03, .2], [.014, .26], [0, .3]], 14), hatM, cone3);
+// limbs: smooth tapered sleeves / trousers
+function seg(par, len, r0, r1, mat) { const g = new THREE.Group(); par.add(g); const m = mesh(lathe([[0, 0], [r0, -.02], [lerp(r0, r1, .5) * 1.04, -len * .5], [r1, -len], [0, -len - .02]], 14), mat, g); return g; }
+function arm(s) { const sh = new THREE.Group(); sh.position.set(s * .27, .66, 0); torso.add(sh); const up = seg(sh, .33, .1, .085, coatM); const el = new THREE.Group(); el.position.y = -.33; up.add(el); const lo = seg(el, .3, .09, .1, coatM);
+  const cuff = mesh(new THREE.TorusGeometry(.085, .045, 8, 14), furM, el); cuff.position.y = -.31; cuff.rotation.x = Math.PI / 2;
+  const hand = mesh(new THREE.SphereGeometry(.1, 12, 10), gloveM, el); hand.position.y = -.4; hand.scale.set(.85, 1.1, .75); return [sh, el]; }
+function leg(s) { const hp = new THREE.Group(); hp.position.set(s * .13, -.08, 0); hips.add(hp); seg(hp, .44, .13, .11, pantsM); const kn = new THREE.Group(); kn.position.y = -.44; hp.add(kn); seg(kn, .38, .11, .09, pantsM);
+  const boot = mesh(new THREE.CapsuleGeometry(.08, .16, 4, 10), bootM, kn); boot.position.set(0, -.44, .06); boot.rotation.x = Math.PI / 2; return [hp, kn]; }
+const armL = arm(1), armR = arm(-1), legL = leg(1), legR = leg(-1);
+const staff = new THREE.Group(); armR[1].add(staff); staff.position.set(0, -.42, .04);
+mesh(new THREE.CylinderGeometry(.04, .05, 1.7, 8), MS('#6a4a2e'), staff); const knob = mesh(new THREE.SphereGeometry(.08, 10, 8), MS('#5c3e26'), staff); knob.position.y = .86; knob.scale.y = 1.4;
 
+// smooth, slightly goofy run: proper cycle with overlap and follow-through
 function poseWizard(t) {
-  const ph = t * Math.PI * 2 * 1.7, s = Math.sin(ph), c = Math.cos(ph);
-  const z = -4 + t * 3.1, wob = Math.sin(t * 2.3) * .5;                  // runs toward the camera, wobbling side to side
-  wiz.position.set(wob, Math.abs(Math.sin(ph)) * .22, z); wiz.rotation.y = Math.cos(t * 2.3) * .35;
-  hips.rotation.set(0, s * .25, Math.sin(ph * .5) * .12);
-  torso.rotation.set(.35 + Math.abs(s) * .12, -s * .35, c * .12);
-  legL[0].rotation.x = -s * 1.15; legL[1].rotation.x = Math.max(0, s) * 1.5 + .2; legR[0].rotation.x = s * 1.15; legR[1].rotation.x = Math.max(0, -s) * 1.5 + .2;
-  // flailing arms: big windmill loops, out of sync
-  armL[0].rotation.set(Math.sin(ph * 1.5) * 2.2, 0, .9 + Math.cos(ph * 1.5) * .7); armL[1].rotation.x = -.8 - Math.sin(ph * 3) * .6;
-  armR[0].rotation.set(-Math.sin(ph * 1.5 + 1) * 1.6, 0, -.7 - Math.cos(ph) * .5); armR[1].rotation.x = -.5;
-  headG.rotation.set(-.3 + c * .15, s * .25, -c * .2);
-  // the hat lags and flops
-  hat.rotation.set(-.15 - c * .18, 0, s * .25); cone1.rotation.set(-.2 - Math.abs(c) * .25, 0, s * .2); cone2.rotation.set(-.55 - Math.abs(Math.sin(ph - .6)) * .35, 0, Math.sin(ph - .6) * .35); cone3.rotation.set(-.7 - Math.abs(Math.sin(ph - 1.2)) * .4, 0, Math.sin(ph - 1.2) * .5);
+  const f = 1.55, ph = t * Math.PI * 2 * f, s = Math.sin(ph), c = Math.cos(ph);
+  const z = -4 + t * 2.7, wob = Math.sin(t * 2.1) * .35;
+  wiz.position.set(wob, .06 + Math.pow(Math.abs(Math.sin(ph)), 1.5) * .16, z); wiz.rotation.y = Math.cos(t * 2.1) * .28;
+  hips.rotation.set(.08, s * .22, Math.sin(ph) * .06);
+  torso.rotation.set(.22 + Math.abs(c) * .06, -s * .3, -s * .05);
+  legL[0].rotation.x = -s * .95 - .1; legL[1].rotation.x = Math.max(0, Math.sin(ph + .9)) * 1.6 + .15;
+  legR[0].rotation.x = s * .95 - .1; legR[1].rotation.x = Math.max(0, Math.sin(ph + .9 + Math.PI)) * 1.6 + .15;
+  // the funny part: the free arm flaps high and loose, the staff arm pumps stiffly
+  const flap = Math.sin(ph * 2 + .6);
+  armL[0].rotation.set(s * 1.1 - .2, 0, .5 + .7 * (.5 + .5 * flap)); armL[1].rotation.set(-.6 - .5 * Math.max(0, flap), 0, 0);
+  armR[0].rotation.set(-s * .9 - .3, 0, -.25); armR[1].rotation.set(-1.0 + c * .2, 0, 0); staff.rotation.set(1.25 + s * .2, 0, .1);
+  headG.rotation.set(-.12 + Math.sin(ph * 2) * .06, s * .18, -s * .08);
+  // the hat follows a beat late
+  const lag = k => Math.sin(ph - k), lagA = k => Math.abs(Math.sin(ph - k));
+  hat.rotation.set(-.3 - lag(.5) * .07, 0, lag(.5) * .1);
+  cone1.rotation.set(-.15 - lagA(.8) * .12, 0, lag(.8) * .1); cone2.rotation.set(-.45 - lagA(1.3) * .2, 0, lag(1.3) * .2); cone3.rotation.set(-.6 - lagA(1.8) * .3, 0, lag(1.8) * .3);
+  coatSkirt.rotation.set(-s * .04 - .03, 0, Math.sin(ph * 2) * .03);
 }
 
 // ---------------------------------------------------------------- PS2 look: low-res render → Kuwahara smear → soft upscale + posterize
@@ -146,10 +168,10 @@ const cam = new THREE.PerspectiveCamera(52, W / H, .1, 200);
 
 window.DUR = 5; window.TEXTS = () => [];
 window.render = t => {
-  const tq = Math.floor(t / STEP + 1e-6) * STEP;
+  const tq = t;
   poseWizard(tq);
   // handheld camera, backing up ahead of him, low and slightly below
-  const z = -4 + tq * 3.1, hx = Math.sin(tq * 1.7) * .12 + Math.sin(tq * 4.1) * .04, hy = Math.sin(tq * 2.3) * .06;
+  const z = -4 + tq * 2.7, hx = Math.sin(tq * 1.7) * .12 + Math.sin(tq * 4.1) * .04, hy = Math.sin(tq * 2.3) * .06;
   cam.position.set(1.4 + hx, 1.15 + hy, z + 4.2 - tq * .12); cam.lookAt(wiz.position.x * .6, 1.45, z); cam.rotateZ(Math.sin(tq * 1.1) * .03);
   sun.position.set(5, 11, z + 12); sun.target.position.set(0, 0, z);
   const sp = pollen.pos; pollen.seed.forEach(([x, y, zz, r], i) => { sp[i * 3] = x + Math.sin(tq * .6 + r * 9) * .6; sp[i * 3 + 1] = (y + tq * (.15 + r * .2)) % 6; sp[i * 3 + 2] = zz + z; }); pollen.p.geometry.attributes.position.needsUpdate = true;
