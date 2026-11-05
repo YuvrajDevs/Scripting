@@ -89,3 +89,26 @@ These are reusable parts, not the definition of the style.
   - Night bloom above about 1 strength turns to yellow mush.
   - Check that the subject in an aerial shot is actually on screen.
   - Avoid GLSL reserved words such as `half`.
+
+---
+
+## Cinematic golden-hour variant (approved test: `lowpoly-autumn/`)
+From the user's autumn-ghost reference: warm, aesthetic, cinematic.
+- **Light:**
+  - A low golden sun `#ffb866` (intensity ~6), coming from behind and to the side.
+  - Crisp PCF soft shadows on a 4096 map over ±11m, so leaf cards cast **dappled shadows** on the ground and bench.
+  - Hemisphere light `#ffd2a0`/`#7a3626`, and warm fog `#f0a06a` (14–42m).
+- **Light shafts:** additive gradient planes, cylindrically billboarded around the sun direction so they always face the camera, at opacity .13–.21.
+- **Foliage:** faceted icosahedron canopies (per-face autumn colours) plus ~700 instanced leaf cards per tree, which give the shadow dapple and a painterly edge. Leaf litter is instanced on the ground.
+- **Drifting leaves:** 140 instanced, closed-form looping fall with sway and spin.
+- **Glossy paving:** roughness .32, metalness .15, so it picks up warm reflections.
+- **Post:**
+  - BokehPass depth of field on close-ups, with focus set to the subject's distance (aperture .006).
+  - Bloom .55–.65, threshold .78.
+  - Grade: saturation ×1.14, **split tone** (rosy shadows +(.05,−.01,.04), amber highlights +(.04,.015,−.03)), a strong vignette and fine grain.
+- **Camera language:** slow, eased, smooth 25fps moves with hard cuts between shots, using three shot types:
+  - A crane down through the canopy.
+  - A straight-down overhead with a slow turn.
+  - A low dolly-in with shallow focus.
+- **Characters:** a faceted loft body with per-face colour. Keep markings small (chest bib, socks, tail tip). Add idle life: breathing, tail sway, ear twitches, a head that follows events.
+- **Render:** about 7 min per 10s with depth of field. Re-encode with `-crf 20` before committing (the raw output was 87MB).
