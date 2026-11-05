@@ -96,3 +96,69 @@ Calm narrator, a low ambient drone and soft night sounds (water, insects), with 
 - **Transitions:** render both scenes and crossfade with alpha. A fog wipe is a growing blurred white layer.
 - **Text:** Poppins from `ramen-lowpoly/fonts/`, loaded with `FontFace`, using the karaoke highlight as above.
 - **Keep it clean:** no grain, no outlines, no clutter. When in doubt, remove detail and add soft light.
+
+---
+
+## 9. Approved build: `sirens-cutouts/` (10s, Sirens, Tale No. 4)
+The user approved this build. **Copy it as the starting point** for new flat-cutouts videos.
+It's a single `index.html` with Canvas2D, about 230 lines, and renders in about 40s for 10s of video.
+
+### Shot plan used (a good template for a 10s tale)
+| Time | Shot | Purpose |
+|---|---|---|
+| 0–3.4s | Wide establishing shot: moonlit sea, the hero rows a lantern boat toward a far rock, slow pan. Title card fades in and out. | Set the mood and the series branding |
+| 3.4–7s | Soft 0.55s dissolve to a medium shot: the threat (siren on a rock, pale glow, swaying tail, song rings drifting to the boat). The hero slows, stops and looks up. Slow 5% push-in. | Reveal |
+| 7–10s | Quick 0.25s dissolve to a close shot: hull at the waterline, a pale face rising through the lantern's beam, an **arm stretching** toward the boat. Fade to black over the last 0.55s. | Horror beat and the stretched-limb signature |
+
+### Helpers (all in `index.html`)
+- **`sky(top, mid, horizon, y)`:** a 3-stop vertical gradient. `stars(t)`: seeded dots with slow twinkle. `moon(x, y, r)`: a disc with two faint craters plus a `glow` of 6× the radius.
+- **`glow(x, y, r, 'r,g,b', a)`:** a radial gradient with `lighter` compositing, stops at 0, 0.35 (×0.45) and 1. This is the core light effect, used for lamps, the moon and the siren aura.
+- **`water(horizon, a, b, t, panX)`:** a gradient plus 46 seeded thin streak lines (`rgba(170,195,230,.10)`, 2px) drifting right, longer near the viewer.
+- **`reflect(horizon, fn, a)`:** clip to below the horizon, mirror with `translate(0, 2·horizon)` and `scale(1, -1)`, then redraw the far layers at alpha .25–.3 with `blur(3px)`. The boat reflection is squashed (`scale(1, -.6)`).
+- **`haze(y, h, 'r,g,b', a)`:** a soft band where water meets sky. `vignette(a)`: a radial edge darkening plus a darker bottom 30%.
+- **`tube(x1, y1, x2, y2, w, col)`:** a round-capped thick stroke. **All limbs, oars and poles are tubes**, which gives the puppet look for free.
+- **`poly(points, col)`:** a flat polygon for torsos, rocks and fins.
+
+### Puppet rig
+- **`headProfile(x, y, s, o)`:** a profile head facing right.
+  - Built from a skin ellipse (27×31), a nose triangle, an ear dot, a hair-cap path (`short`, or `long` with flowing hair), and an eye (white almond with a dark dot, or for `pale` ghosts a hollow socket with a glint), plus a mouth ellipse whose height is the `mouth` value (0–1, used for singing).
+- **`rower(x, y, s, phase, stop, look)`:** a seated rower.
+  - Lean is `.12·sin(phase)`.
+  - The far arm (darker colours) is drawn behind the torso and the near arm in front. Each arm is an upper and lower tube to a hand circle.
+  - The oar is a tube with a blade ellipse.
+  - `stop` (0–1) blends the stroke to a halt, and `look` tilts the head up.
+- **`siren(x, y, s, t, sing)`:**
+  - The body is mirrored to face left.
+  - The tail is a teal curve with a fin that sways (`sin(1.3t)`), with a few faint scale arcs.
+  - Pale torso and arms, long black hair swaying, and the mouth opens and closes while singing.
+- **`boat(x, y, s, bob, lamp)`:** a two-tone hull curve with a gunwale line, and a lantern on a pole with a warm glow. It bobs with `sin(2.1t)·5`.
+- **Colours used:**
+  - Sailor: skin `#c4895c` (shade `#a8714a`), shirt `#2e3f78` / `#34478a`, far arm `#24315f`.
+  - Hull: `#4b2f22` / `#3a2219`. Lantern: `#f6c36c` with glow `255,190,110`.
+  - Siren: skin `#b9c3c9`, tail `#2f6f73` / `#3f8d8f`.
+  - Night sky: `#08101f` to `#13203a` to `#22314f`. Water: `#15233a` to `#05080f`.
+  - Underwater: `#123044` to `#03070c`.
+
+### Captions and title (as built)
+- **Captions:**
+  - Poppins 600 at 64px, white, with the active word in `#f2a65a`.
+  - Shadow: `rgba(0,0,0,.45)`, blur 10, y 2.
+  - Each chunk fades in and out over 0.15s. The active word is the last word whose start time has passed.
+  - Placement is y = 370 (top) in most shots, or y = 1520 (lower) when the title card sits in the middle.
+- **Title card:**
+  - "FOLK HORROR TALES" in Poppins 600 at 26px, letter-spacing 9px, between two thin 110px rules.
+  - The name in **Liberation Serif** at 128px, letter-spacing 10px, colour `#e9dcbc`.
+  - "– Tale No. N –" in italic serif at 40px.
+  - Fades in from 0.3s and out by about 3.4s.
+- **Fonts:** Poppins from `fonts/` (woff2, loaded with `FontFace` before `READY`). The serif comes from the system Liberation Serif.
+
+### Render
+```bash
+cd /home/user/lemomo-ai/lemo-opuscar
+node core/render/video.mjs /home/user/Scripting/<dir> --fps 30 --size 1080x1920 --workers 4 --out /home/user/Scripting/<dir>/<name>.mp4
+```
+
+### Lessons
+- Keep captions clear of the main subject (at first they overlapped the boat in the wide shot, so I moved them lower).
+- Underwater scenes: draw the subject, then a translucent water veil (`rgba(20,48,66,.35)`), then the surface line and ripple ellipses, so things look submerged.
+- Every scene stays readable with only 3–5 flat layers plus glows. Resist adding detail.
